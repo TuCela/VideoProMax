@@ -26,7 +26,7 @@ class VideoHubApp extends StatelessWidget {
       valueListenable: FontSettings.instance.delta,
       builder: (_, __, ___) {
         return MaterialApp(
-          title: 'VideoHub',
+          title: 'Video Pro Max',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             useMaterial3: true,

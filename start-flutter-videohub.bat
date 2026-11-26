@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title VideoHub (Flutter)
+title Video Pro Max (Flutter)
 cd /d "%~dp0"
 
 if not exist "build\windows\x64\runner\Release\video_hub_flutter.exe" (

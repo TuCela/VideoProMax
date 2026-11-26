@@ -98,14 +98,14 @@ class _HomeHeaderState extends State<HomeHeader> {
                     onPanStart: (_) => _window('drag'),
                     onDoubleTap: () => _window('maximize'),
                     child: Container(
-                      width: compact ? 132 : 194,
+                      width: compact ? 132 : 236,
                       height: 64,
                       alignment: Alignment.centerLeft,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            'VideoHub',
+                            'Video Pro Max',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

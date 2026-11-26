@@ -1,10 +1,10 @@
-# VideoHub
+# Video Pro Max
 
 基于 Flutter 的哔哩哔哩桌面客户端，目前适配 Windows。
 
 > **非官方项目**：与哔哩哔哩无任何关联，仅供学习 Flutter 桌面开发与网络协议分析使用。
 
-> **官方仓库**：本项目唯一的官方代码托管地址即本仓库（GitHub）。其他网站、账号或平台下的同名项目均为非官方复制，与本项目及作者无关；官方编译产物只在 GitHub Releases 发布。
+> **官方仓库**：本项目唯一的官方代码托管地址即 https://github.com/TuCela/VideoProMax 。其他网站、账号或平台下的同名项目均为非官方复制，与本项目及作者无关；官方编译产物只在 GitHub Releases 发布。
 
 ## 功能
 
