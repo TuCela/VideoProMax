@@ -1,4 +1,4 @@
-@REM Copyright (c) 2026 flysky
+@REM Copyright (c) 2026 TuCela
 @REM SPDX-License-Identifier: GPL-3.0-only
 
 @echo off
