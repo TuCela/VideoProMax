@@ -1,0 +1,295 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/material.dart';
+
+import '../bili/prefs.dart';
+import '../ui/home_page.dart';
+import '../ui/settings_page.dart';
+import 'app_destination.dart';
+
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+AppDestination _initialDestination() {
+  return switch (Platform.environment['VIDEOHUB_PAGE']) {
+    'history' => AppDestination.history,
+    'downloads' => AppDestination.downloads,
+    'space' => AppDestination.space,
+    'settings' => AppDestination.settings,
+    _ => AppDestination.home,
+  };
+}
+
+class _AppShellState extends State<AppShell> {
+  final AppPrefs _prefs = AppPrefs();
+  final ValueNotifier<AppDestination> _destination =
+      ValueNotifier<AppDestination>(_initialDestination());
+  final ValueNotifier<int> _downloadCount = ValueNotifier<int>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_prefs.load());
+  }
+
+  @override
+  void dispose() {
+    _downloadCount.dispose();
+    _destination.dispose();
+    super.dispose();
+  }
+
+  void _select(AppDestination destination) {
+    _destination.value = destination;
+  }
+
+  void _showHelp() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF141820),
+        title: const Text('VideoHub'),
+        content: const Text(
+          'Windows 桌面端视频客户端\n当前版本：1.0.0\n视频来源：哔哩哔哩',
+          style: TextStyle(fontSize: 12, height: 1.8),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0E1117),
+      body: Row(
+        children: [
+          _Sidebar(
+            destination: _destination,
+            downloadCount: _downloadCount,
+            onSelect: _select,
+            onHelp: _showHelp,
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: _destination.value == AppDestination.settings ? 1 : 0,
+              children: [
+                HomePage(
+                  destination: _destination,
+                  prefs: _prefs,
+                  onDownloadCountChanged: (count) =>
+                      _downloadCount.value = count,
+                ),
+                SettingsPage(
+                  prefs: _prefs,
+                  onBack: () => _destination.value = AppDestination.home,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({
+    required this.destination,
+    required this.downloadCount,
+    required this.onSelect,
+    required this.onHelp,
+  });
+
+  final ValueListenable<AppDestination> destination;
+  final ValueListenable<int> downloadCount;
+  final ValueChanged<AppDestination> onSelect;
+  final VoidCallback onHelp;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 78,
+      color: const Color(0xFF0B0E14),
+      child: ValueListenableBuilder<AppDestination>(
+        valueListenable: destination,
+        builder: (context, current, _) {
+          return Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B8CFF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'VH',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              for (final item in const [
+                (AppDestination.home, Icons.home_outlined),
+                (AppDestination.history, Icons.history),
+                (AppDestination.downloads, Icons.download_outlined),
+                (AppDestination.space, Icons.people_outline),
+              ])
+                _NavItem(
+                  destination: item.$1,
+                  icon: item.$2,
+                  selected: current == item.$1,
+                  downloadCount: downloadCount,
+                  onTap: () => onSelect(item.$1),
+                ),
+              const Spacer(),
+              IconButton(
+                tooltip: '设置',
+                onPressed: () => onSelect(AppDestination.settings),
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  size: 19,
+                  color: Color(0xFF657086),
+                ),
+              ),
+              IconButton(
+                tooltip: '帮助',
+                onPressed: onHelp,
+                icon: const Icon(
+                  Icons.help_outline,
+                  size: 19,
+                  color: Color(0xFF657086),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.destination,
+    required this.icon,
+    required this.selected,
+    required this.downloadCount,
+    required this.onTap,
+  });
+
+  final AppDestination destination;
+  final IconData icon;
+  final bool selected;
+  final ValueListenable<int> downloadCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 62,
+          height: 54,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1B2A4A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Stack(
+            children: [
+              if (selected)
+                Positioned(
+                  left: -8,
+                  top: 14,
+                  child: Container(
+                    width: 3,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5B8CFF),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 19,
+                      color: selected
+                          ? const Color(0xFFB8CBFF)
+                          : const Color(0xFF657086),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      destination.label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: selected
+                            ? const Color(0xFFB8CBFF)
+                            : const Color(0xFF657086),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (destination == AppDestination.downloads)
+                ValueListenableBuilder<int>(
+                  valueListenable: downloadCount,
+                  builder: (context, count, _) {
+                    if (count <= 0) return const SizedBox.shrink();
+                    return Positioned(
+                      top: 6,
+                      right: 9,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 15),
+                        height: 15,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5B8CFF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            fontSize: 8,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

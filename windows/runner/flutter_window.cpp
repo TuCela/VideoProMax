@@ -1,0 +1,144 @@
+#include "flutter_window.h"
+
+#include <commctrl.h>
+
+#include <optional>
+
+#include "flutter/generated_plugin_registrant.h"
+#include "flutter/standard_method_codec.h"
+
+namespace {
+
+// The Flutter view is a child window covering the whole client area, so the
+// top-level window never receives WM_NCHITTEST for the 6px resize border.
+// Forward border hits (HTTRANSPARENT) to the parent, which answers with
+// HTLEFT / HTBOTTOMRIGHT / ... so the OS starts a native resize.
+constexpr int kResizeBorder = 6;
+
+LRESULT CALLBACK ChildHitTestProc(HWND hwnd,
+                                  UINT message,
+                                  WPARAM wparam,
+                                  LPARAM lparam,
+                                  UINT_PTR subclass_id,
+                                  DWORD_PTR ref_data) {
+  if (message == WM_NCHITTEST) {
+    HWND parent = GetParent(hwnd);
+    if (parent != nullptr && !IsZoomed(parent)) {
+      POINT point = {static_cast<short>(LOWORD(lparam)),
+                     static_cast<short>(HIWORD(lparam))};
+      RECT bounds;
+      if (GetWindowRect(parent, &bounds)) {
+        const bool in_border =
+            point.x < bounds.left + kResizeBorder ||
+            point.x >= bounds.right - kResizeBorder ||
+            point.y < bounds.top + kResizeBorder ||
+            point.y >= bounds.bottom - kResizeBorder;
+        if (in_border) {
+          return HTTRANSPARENT;
+        }
+      }
+    }
+  }
+  return DefSubclassProc(hwnd, message, wparam, lparam);
+}
+
+}  // namespace
+
+FlutterWindow::FlutterWindow(const flutter::DartProject& project)
+    : project_(project) {}
+
+FlutterWindow::~FlutterWindow() {}
+
+bool FlutterWindow::OnCreate() {
+  if (!Win32Window::OnCreate()) {
+    return false;
+  }
+
+  RECT frame = GetClientArea();
+
+  // The size here must match the window dimensions to avoid unnecessary surface
+  // creation / destruction in the startup path.
+  flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
+      frame.right - frame.left, frame.bottom - frame.top, project_);
+  // Ensure that basic setup of the controller was successful.
+  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
+    return false;
+  }
+  RegisterPlugins(flutter_controller_->engine());
+  window_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "videohub/window",
+          &flutter::StandardMethodCodec::GetInstance());
+  window_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        const auto& method = call.method_name();
+        if (method == "minimize") {
+          ShowWindow(GetHandle(), SW_MINIMIZE);
+          result->Success();
+        } else if (method == "maximize") {
+          ShowWindow(GetHandle(), IsZoomed(GetHandle()) ? SW_RESTORE : SW_MAXIMIZE);
+          result->Success();
+        } else if (method == "close") {
+          PostMessage(GetHandle(), WM_CLOSE, 0, 0);
+          result->Success();
+        } else if (method == "drag") {
+          ReleaseCapture();
+          SendMessage(GetHandle(), WM_NCLBUTTONDOWN, HTCAPTION, 0);
+          result->Success();
+        } else if (method == "isMaximized") {
+          result->Success(flutter::EncodableValue(IsZoomed(GetHandle()) != 0));
+        } else {
+          result->Error("unknown_method", "Unknown window method");
+        }
+      });
+  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+  SetWindowSubclass(flutter_controller_->view()->GetNativeWindow(),
+                    ChildHitTestProc, 1, 0);
+
+  flutter_controller_->engine()->SetNextFrameCallback([&]() {
+    this->Show();
+  });
+
+  // Flutter can complete the first frame before the "show window" callback is
+  // registered. The following call ensures a frame is pending to ensure the
+  // window is shown. It is a no-op if the first frame hasn't completed yet.
+  flutter_controller_->ForceRedraw();
+
+  return true;
+}
+
+void FlutterWindow::OnDestroy() {
+  if (window_channel_) {
+    window_channel_ = nullptr;
+  }
+  if (flutter_controller_) {
+    flutter_controller_ = nullptr;
+  }
+
+  Win32Window::OnDestroy();
+}
+
+LRESULT
+FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
+                              WPARAM const wparam,
+                              LPARAM const lparam) noexcept {
+  // Give Flutter, including plugins, an opportunity to handle window messages.
+  if (flutter_controller_) {
+    std::optional<LRESULT> result =
+        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
+                                                      lparam);
+    if (result) {
+      return *result;
+    }
+  }
+
+  switch (message) {
+    case WM_FONTCHANGE:
+      flutter_controller_->engine()->ReloadSystemFonts();
+      break;
+  }
+
+  return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+}

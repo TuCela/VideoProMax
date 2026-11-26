@@ -1,0 +1,97 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/
+
+# ==== 本项目补充（开源前必读）====
+
+# 构建产物与二进制：不要提交
+/build/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.exp
+ffmpeg.exe
+
+# 下载与缓存目录
+/downloads/
+
+# 分发包（体积大，不提交）
+/dist/
+
+# 本机登录态 / 用户配置：一旦提交等于泄露账号
+bilibili-auth.json
+prefs.json
+*.local.json
+cookies.txt
+
+# 环境与密钥文件
+.env
+.env.*
+
+# 编辑器个人配置
+.vscode/
+*.code-workspace
+
+# Windows 缩略图缓存
+Thumbs.db
+desktop.ini
+
+# ==== 开源仓库额外忽略 ====
+
+# 内部交接与设计稿
+HANDOFF.md
+AGENTS.md
+COLLAB.md
+/preview/
+
+# 随包 ffmpeg（用 scripts/fetch-ffmpeg.ps1 获取）
+/windows/tools/
+
+# 分发包
+*.zip
