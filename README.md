@@ -49,7 +49,7 @@ flutter build windows --release
 
 下载合并功能需要 ffmpeg。仓库不带二进制，运行 `powershell -ExecutionPolicy Bypass -File scripts/fetch-ffmpeg.ps1` 会把它下载到 `windows/tools/`，下次构建自动装到 exe 同级；也可以手动放进 `Release` 目录。不放也能正常播放，只是下载时会提示找不到 ffmpeg。
 
-已构建过的可以直接双击根目录的 `start-flutter-videohub.bat` 启动（要求 `flutter` 已在 `PATH` 中）。
+已构建过的可以直接双击根目录的 `start-videopromax.bat` 启动（要求 `flutter` 已在 `PATH` 中）。
 
 ## 使用
 
