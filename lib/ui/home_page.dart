@@ -152,6 +152,17 @@ class HomePageState extends State<HomePage> {
   /// 发现已过期立即退出，避免快速连点多个视频时 open / audio-add / aid
   /// 三条序列交错，把刚挂上的音轨冲掉（表现为视频在播但没声音）。
   int _openSeq = 0;
+
+  /// open 流程串行闸门。media_kit 的 open 是异步的，两个 open 并发时
+  /// 「后完成的那个」才真正生效 —— 快速连点会让画面来自 B、音轨却来自 A，
+  /// 或音轨直接挂不上。用一条 Future 链强制 stop→open→audio→play 依次执行，
+  /// 过期请求在链里发现代次已变就立刻跳过，不产生任何副作用。
+  Future<void> _openGate = Future<void>.value();
+
+  /// 点击意图代次：_playVideo 在 fetchDetail 等网络之前先记一次，
+  /// 快速连点时先点的那个恢复后若已被超越就必须放弃，否则会把用户
+  /// 真正想要的那个视频冲掉。
+  int _playIntent = 0;
   double _rate = 1.0;
   static const List<double> _rates = [1.0, 1.25, 1.5, 2.0, 0.75];
 
@@ -346,6 +357,36 @@ _player.stream.position.listen((value) {
     }
   }
 
+  /// 播放链路追踪：用 VIDEOHUB_TRACE=1 启动后，open/stop/audio-add/aid
+  /// 的时序会写进临时日志，用于定位「快速切换后无声」这类竞态。
+  static final bool _traceOn =
+      (Platform.environment['VIDEOHUB_TRACE'] ?? '') == '1';
+  static bool _traceStarted = false;
+
+  void _trace(String message) {
+    if (!_traceOn) return;
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final ts = '${two(now.hour)}:${two(now.minute)}:${two(now.second)}'
+        '.${now.millisecond.toString().padLeft(3, '0')}';
+    try {
+      final file = File('${Directory.systemTemp.path}\\videohub-trace.log');
+      if (!_traceStarted) {
+        // 本进程首条日志覆盖旧文件，避免上一次运行的记录混进来。
+        _traceStarted = true;
+        file.writeAsStringSync('=== start ${now.toIso8601String()} ===\n');
+      }
+      file.writeAsStringSync('$ts $message\n', mode: FileMode.append);
+    } catch (_) {}
+  }
+
+  /// 把一次完整的打开流程排进串行链，保证不会有两个 open 同时操作 player。
+  Future<void> _serializeOpen(Future<void> Function() action) {
+    final task = _openGate.then((_) => action());
+    _openGate = task.catchError((_) {});
+    return task;
+  }
+
   Future<String> _prop(String name) async {
     try {
       final value = await (_player.platform as dynamic).getProperty(name);
@@ -492,8 +533,14 @@ _player.stream.position.listen((value) {
       setState(() {
         _feedPage = page;
         if (append) {
-          final existing = _items.map((e) => e.bvid).toSet();
-          final fresh = items.where((e) => !existing.contains(e.bvid)).toList();
+          // 版权条目（番剧/影视）的 bvid 是空的，只按 bvid 去重会把
+          // 整批番剧都当成重复项丢掉，所以 seasonId 优先。
+          String keyOf(VideoItem e) =>
+              e.seasonId != null ? 's${e.seasonId}' : 'v${e.bvid}';
+          final existing = _items.map(keyOf).toSet();
+          final fresh = items
+              .where((e) => !existing.contains(keyOf(e)))
+              .toList();
           _items = [..._items, ...fresh];
           _feedHasMore = items.isNotEmpty && fresh.isNotEmpty;
         } else {
@@ -630,9 +677,11 @@ _player.stream.position.listen((value) {
     Duration startAt = Duration.zero,
     String? part,
   }) async {
+    final intent = ++_playIntent;
     if (_localPlaying && mounted) setState(() => _localPlaying = false);
     _recordProgress(force: true);
     if (_auth.isLoggedIn) await _refreshCloudHistory();
+    if (intent != _playIntent) return;
     if (item.seasonId != null) {
       await _playSeason(item, startAt: startAt);
       return;
@@ -657,6 +706,7 @@ _player.stream.position.listen((value) {
     try {
       detail = await _client.fetchDetail(item.bvid);
       if (!mounted) return;
+      if (intent != _playIntent) return;
       setState(() {
         _detail = detail;
         _detailBvid = item.bvid;
@@ -679,6 +729,7 @@ _player.stream.position.listen((value) {
       }
       final targetCid =
           cid ?? page?.cid ?? (detail != null ? detail.cid : null);
+      if (intent != _playIntent) return;
       await _loadPlay(
         item,
         targetCid,
@@ -687,9 +738,14 @@ _player.stream.position.listen((value) {
         aid: detail?.aid,
       );
     } catch (error) {
-      if (mounted) setState(() => _message = '播放源解析失败：$error');
+      if (mounted && intent == _playIntent) {
+        setState(() => _message = '播放源解析失败：$error');
+      }
     } finally {
-      if (mounted) setState(() => _resolving = false);
+      // 被后点的视频超越时不要把它的「加载中」状态清掉。
+      if (mounted && intent == _playIntent) {
+        setState(() => _resolving = false);
+      }
     }
   }
 
@@ -925,9 +981,17 @@ _player.stream.position.listen((value) {
     final seq = ++_openSeq;
     _streamUrls = [video.baseUrl, ...video.backupUrls];
     _streamUrlIndex = 0;
-    await _openStreamAtCurrent(video, audio, startAt, seq);
-    if (seq != _openSeq) return;
-    _watchStall(video, audio, startAt, seq);
+    _trace('open seq=$seq lines=${_streamUrls.length}');
+    await _serializeOpen(() async {
+      // 排队期间用户又点了下一个视频：本次已过期，什么都不做。
+      if (seq != _openSeq) {
+        _trace('skip stale seq=$seq now=$_openSeq');
+        return;
+      }
+      await _openStreamAtCurrent(video, audio, startAt, seq);
+      if (seq != _openSeq) return;
+      _watchStall(video, audio, startAt, seq);
+    });
   }
 
   /// 按 [_streamUrlIndex] 指向的线路打开媒体。
@@ -939,19 +1003,27 @@ _player.stream.position.listen((value) {
   ) async {
     if (seq != _openSeq) return;
     final url = _streamUrls[_streamUrlIndex];
+    _trace('line=${_streamUrlIndex + 1}/${_streamUrls.length} seq=$seq stop');
     // 先停掉上一条：audio-add 是挂在「当前文件」上的，不先清空的话
     // 上一条的 external audio 会残留到新文件，音轨编号随之错位。
     try {
       await _player.stop();
     } catch (_) {}
-    if (seq != _openSeq) return;
+    if (seq != _openSeq) {
+      _trace('abort after stop seq=$seq now=$_openSeq');
+      return;
+    }
     await _player.open(
       Media(url, httpHeaders: _client.streamHeaders),
       play: false,
     );
+    _trace('opened seq=$seq');
     // open 是长 await，期间用户可能已经点了下一个视频。这里必须再比对一次，
     // 否则过期请求会往下走，把旧音轨挂到新打开的文件上导致无声。
-    if (seq != _openSeq) return;
+    if (seq != _openSeq) {
+      _trace('abort after open seq=$seq now=$_openSeq');
+      return;
+    }
     if (audio != null) {
       await _attachAudio(_player.platform, audio, seq);
       if (seq != _openSeq) return;
@@ -966,11 +1038,16 @@ _player.stream.position.listen((value) {
     // 且文件刚 load 时 mpv 可能直接丢弃 seek，所以要校验并重试。
     if (startAt > const Duration(seconds: 1)) {
       for (var attempt = 0; attempt < 5; attempt++) {
+        // 已切到下一个视频就别再 seek 了：否则会给新视频乱定位，
+        // 还会白白占着串行链几秒。
+        if (seq != _openSeq) return;
         await Future<void>.delayed(const Duration(milliseconds: 350));
+        if (seq != _openSeq) return;
         try {
           await _player.seek(startAt);
         } catch (_) {}
         await Future<void>.delayed(const Duration(milliseconds: 300));
+        if (seq != _openSeq) return;
         final current = _player.state.position;
         if ((current - startAt).abs() <= const Duration(seconds: 5)) break;
       }
@@ -990,32 +1067,61 @@ _player.stream.position.listen((value) {
     // 挂音轨前再比对一次：若用户已切到下一个视频，绝不能把本条音轨
     // 挂到新文件上（audio-add 作用于「当前文件」，会打乱音轨编号）。
     if (seq != _openSeq) return;
-    try {
-      await platform.command(['audio-add', audio.baseUrl, 'select']);
-    } catch (_) {}
-    // 网络慢时外部音轨要几秒才就绪，1.2s 太短，容易在 aid=no 时退回
-    // auto 却仍没音轨可选；延长到 4s。
-    for (var attempt = 0; attempt < 20; attempt++) {
+    // 音频 CDN 和视频一样会抽风。过去只死等 baseUrl 一条线路，主线路一慢
+    // 就只能无声（表现为「卡一会、画面出来了却没声音」）。这里按主 + 备用
+    // 逐条尝试，每条线路等约 0.9s，挂不上立刻换下一条。
+    final urls = <String>[
+      if (audio.baseUrl.isNotEmpty) audio.baseUrl,
+      ...audio.backupUrls.where((u) => u.isNotEmpty),
+    ];
+    if (urls.isEmpty) return;
+    for (var line = 0; line < urls.length; line++) {
       if (seq != _openSeq) return;
+      final url = urls[line];
+      // 前面的线路快速试，最后一条多等一会 —— 有些 CDN 不是坏、只是慢。
+      final rounds = line == urls.length - 1 ? 12 : 6;
+      _trace('audio-add line=$line seq=$seq');
       try {
-        final aid = await platform.getProperty('aid');
-        if (aid != null && '$aid' != 'no' && '$aid' != '') return;
+        await platform.command(['audio-add', url, 'select']);
       } catch (_) {}
-      // 第 3 轮补挂一次：CDN 抖动时首次 audio-add 可能直接失败。
-      if (attempt == 2) {
+      // 每条线路最多等 rounds*150ms；确认挂上就立刻返回。
+      for (var attempt = 0; attempt < rounds; attempt++) {
         if (seq != _openSeq) return;
         try {
-          await platform.command(['audio-add', audio.baseUrl, 'select']);
+          final aid = await platform.getProperty('aid');
+          if (_aidSelected(aid)) {
+            _trace('audio ok line=$line aid=$aid seq=$seq');
+            return;
+          }
         } catch (_) {}
+        // 第 2 轮补挂一次：CDN 抖动时首次 audio-add 常直接失败。
+        if (attempt == 1) {
+          if (seq != _openSeq) return;
+          try {
+            await platform.command(['audio-add', url, 'select']);
+          } catch (_) {}
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 150));
       }
-      // 第 4 轮起退回自动选轨，避免一直卡在手工指定上。
-      if (attempt >= 3) {
-        try {
-          await platform.setProperty('aid', 'auto');
-        } catch (_) {}
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      _trace('audio line=$line failed seq=$seq');
     }
+    // 所有线路都没挂上：退回 auto，至少给 mpv 一次自己挑轨的机会。
+    if (seq != _openSeq) return;
+    try {
+      await platform.setProperty('aid', 'auto');
+    } catch (_) {}
+    _trace('audio fallback=auto seq=$seq');
+  }
+
+  /// aid 指向具体轨道（正整数）才算真的选中了音频。
+  /// 没挂上时 mpv 给 `no`；设成自动后可能给 `auto` —— 都不算成功，
+  /// 否则会把「没有音轨」误判成「已挂好」而提前结束轮询。
+  bool _aidSelected(Object? aid) {
+    if (aid == null) return false;
+    final text = '$aid'.trim();
+    if (text.isEmpty || text == 'no' || text == 'auto') return false;
+    final track = int.tryParse(text);
+    return track != null && track > 0;
   }
 
   /// 卡顿看门狗：B站主 CDN 偶尔给截断/极慢的流，4 秒还没缓冲就换备用线路。
@@ -1055,7 +1161,10 @@ _player.stream.position.listen((value) {
         setState(() => _message = '主线路较慢，正在切换备用线路…');
       }
       try {
-        await _openStreamAtCurrent(video, audio, startAt, seq);
+        // 切线路也要排进同一条串行链，避免与用户新点的视频并发 open。
+        await _serializeOpen(
+          () => _openStreamAtCurrent(video, audio, startAt, seq),
+        );
       } catch (_) {
         if (mounted) _snack('备用线路也加载失败');
       }

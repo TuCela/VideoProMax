@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -65,6 +66,10 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
     return widget.prefs.wallpaperDay;
   }
 
+  /// 当前壁纸的强度上限：浅色到 1.0，深色与原 6 套到 0.7。
+  double get _intensityMax =>
+      wallpaperStyleById(widget.prefs.wallpaperId)?.maxIntensity ?? 0.7;
+
   Widget _wallpaperTile(WallpaperStyle style) {
     final selected = widget.prefs.wallpaperId == style.id;
     final isDay = style.dayNight && _previewIsDay(style);
@@ -72,6 +77,15 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
       borderRadius: BorderRadius.circular(8),
       onTap: () => _apply(() {
         widget.prefs.wallpaperId = style.id;
+        // 每套壁纸都有自己的最佳强度：切换时按推荐值初始化，
+        // 否则浅色壁纸沿用深色的 0.40 会整幅发灰。
+        final recommended = style.recommendedOpacity;
+        if (recommended != null) {
+          widget.prefs.wallpaperIntensity = recommended;
+        } else {
+          widget.prefs.wallpaperIntensity = widget.prefs.wallpaperIntensity
+              .clamp(0.0, style.maxIntensity);
+        }
         _syncWallpaper();
       }),
       child: Container(
@@ -172,11 +186,15 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: SurfaceSettings.instance.color,
+    // 背景取面板下方那一块主页（壁纸 + 列表）：先高斯模糊，
+    // 再叠统一的半透明底板 —— 既保留壁纸色调，又不会被下层文字干扰。
+    return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Material(
+          color: SurfaceSettings.instance.color,
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
@@ -308,8 +326,11 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
                   ),
                   Slider(
                     min: 0,
-                    max: 0.7,
-                    value: widget.prefs.wallpaperIntensity.clamp(0.0, 0.7),
+                    max: _intensityMax,
+                    value: widget.prefs.wallpaperIntensity.clamp(
+                      0.0,
+                      _intensityMax,
+                    ),
                     onChanged: (value) => _apply(() {
                       widget.prefs.wallpaperIntensity = value;
                       _syncWallpaper();
@@ -410,6 +431,8 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../app/window_chrome.dart';
 import '../bili/prefs.dart';
 import 'font_settings.dart';
 import 'wallpaper.dart';
@@ -49,26 +50,50 @@ class _SettingsPageState extends State<SettingsPage> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+      body: Column(
         children: [
-          Row(
-            children: [
-              if (widget.onBack != null) ...[
-                IconButton(
-                  tooltip: '返回',
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back, size: 19),
+          // 顶部条：返回按钮单独放在拖动区之外，点击不会被拖窗手势抢；
+          // 标题与右侧空白按住即可拖动窗口，双击最大化。
+          SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                if (widget.onBack != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: IconButton(
+                      tooltip: '返回',
+                      onPressed: widget.onBack,
+                      icon: const Icon(Icons.arrow_back, size: 19),
+                    ),
+                  ),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: (_) => WindowChrome.drag(),
+                    onDoubleTap: () => WindowChrome.maximize(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: const Text(
+                          '设置',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 4),
               ],
-              const Text(
-                '设置',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 6),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              children: [
           Text(
             '外观、播放、弹幕、下载与视频来源',
             style: TextStyle(fontSize: 12, color: const Color(0xFF8B9099)),
@@ -137,7 +162,8 @@ class _SettingsPageState extends State<SettingsPage> {
             title: '壁纸',
             children: [
               const Text(
-                '背景由代码实时绘制，只出现在页面留白、间距与底板处；卡片、播放器和文字始终落在不透明深色表面上。',
+                '背景由代码实时绘制，不依赖图片资源；深色 8 套、浅色 8 套，'
+                '切换即时生效。浅色壁纸会自动换用浅色底板并把强度提到推荐值。',
                 style: TextStyle(fontSize: 11, color: Color(0xFF8B9099)),
               ),
               const SizedBox(height: 12),
@@ -153,7 +179,12 @@ class _SettingsPageState extends State<SettingsPage> {
               _sliderTile(
                 title: '背景强度',
                 value: widget.prefs.wallpaperIntensity,
-                max: 0.7,
+                // 浅色壁纸要接近全不透明才不发灰，上限放到 1.0；
+                // 深色壁纸保持原来的 0.7。
+                max: wallpaperStyleById(
+                      widget.prefs.wallpaperId,
+                    )?.maxIntensity ??
+                    0.7,
                 onChanged: (value) => _apply(() {
                   widget.prefs.wallpaperIntensity = value;
                   _syncWallpaper();
@@ -359,6 +390,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -394,6 +428,16 @@ class _SettingsPageState extends State<SettingsPage> {
       borderRadius: BorderRadius.circular(10),
       onTap: () => _apply(() {
         widget.prefs.wallpaperId = id;
+        // 每套壁纸都有自己的最佳强度：切换时按推荐值初始化，
+        // 否则浅色壁纸沿用深色的 0.40 会整幅发灰。
+        final recommended = style?.recommendedOpacity;
+        if (recommended != null) {
+          widget.prefs.wallpaperIntensity = recommended;
+        } else {
+          // 原有 6 套没有推荐值，沿用当前强度但不能超过它自己的上限。
+          widget.prefs.wallpaperIntensity = widget.prefs.wallpaperIntensity
+              .clamp(0.0, style?.maxIntensity ?? 0.7);
+        }
         _syncWallpaper();
       }),
       child: Container(

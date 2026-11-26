@@ -19,7 +19,8 @@ class AppPrefs {
   /// 壁纸风格 id（空字符串表示关闭）。
   String wallpaperId = 'graphite';
 
-  /// 壁纸可见强度 0~0.7，越低越暗、越利于阅读。
+  /// 壁纸可见强度 0~1.0，越低越暗、越利于阅读。
+  /// 深色壁纸的滑块上限仍是 0.7，浅色壁纸才用到 1.0。
   double wallpaperIntensity = 0.40;
 
   /// 壁纸是否跟随时间自动切换日夜。
@@ -72,7 +73,7 @@ class AppPrefs {
       fit = raw['fit'] as String? ?? fit;
       wallpaperId = raw['wallpaperId'] as String? ?? wallpaperId;
       wallpaperIntensity =
-          (raw['wallpaperIntensity'] as num?)?.toDouble().clamp(0.0, 0.7) ??
+          (raw['wallpaperIntensity'] as num?)?.toDouble().clamp(0.0, 1.0) ??
           wallpaperIntensity;
       wallpaperAuto = raw['wallpaperAuto'] as bool? ?? wallpaperAuto;
       wallpaperDay = raw['wallpaperDay'] as bool? ?? wallpaperDay;

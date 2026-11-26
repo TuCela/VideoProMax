@@ -205,6 +205,46 @@ class BiliClient {
     int duration = 0,
     int tids = 0,
   }) async {
+    var videos = await _searchVideos(
+      keyword,
+      page: page,
+      order: order,
+      duration: duration,
+      tids: tids,
+    );
+    if (videos.isEmpty) {
+      videos = await _searchFallback(keyword);
+    }
+    // 番剧 / 国创 / 影视属于版权内容，search_type=video 根本不会返回它们。
+    // 必须另外查 media_bangumi（番剧+国创）和 media_ft（影视）两个分组，
+    // 否则搜「牧神记」这类片名只能看到二创和切片。
+    // 版权条目只在第一页追加，翻页时不再重复。
+    if (page != 1) return videos;
+    final groups = await Future.wait<List<VideoItem>>([
+      _searchPgc(keyword, 'media_bangumi', page),
+      _searchPgc(keyword, 'media_ft', page),
+    ]);
+    final merged = <VideoItem>[];
+    final seenSeasons = <int>{};
+    for (final group in groups) {
+      for (final item in group) {
+        final seasonId = item.seasonId;
+        if (seasonId == null || !seenSeasons.add(seasonId)) continue;
+        merged.add(item);
+      }
+    }
+    // 版权内容排在前面：按片名搜索时，用户要找的就是那一季。
+    return [...merged, ...videos];
+  }
+
+  /// 普通稿件搜索（search_type=video）。
+  Future<List<VideoItem>> _searchVideos(
+    String keyword, {
+    required int page,
+    required String order,
+    required int duration,
+    required int tids,
+  }) async {
     try {
       final signed = await signWbi({
         'search_type': 'video',
@@ -228,9 +268,67 @@ class BiliClient {
         }
       }
     } catch (_) {
-      // 落到下面的降级接口
+      // 由上层决定是否降级到 all/v2
     }
-    return _searchFallback(keyword);
+    return const [];
+  }
+
+  /// 版权内容搜索：[searchType] 为 media_bangumi（番剧/国创）或 media_ft（影视）。
+  Future<List<VideoItem>> _searchPgc(
+    String keyword,
+    String searchType,
+    int page,
+  ) async {
+    try {
+      final signed = await signWbi({
+        'search_type': searchType,
+        'keyword': keyword,
+        'page': page,
+      });
+      final url =
+          'https://api.bilibili.com/x/web-interface/wbi/search/type?${_queryString(signed)}';
+      final res = await _dio.get(url, options: Options(headers: headers));
+      if (res.data['code'] != 0) return const [];
+      final result = res.data['data']?['result'];
+      if (result is! List) return const [];
+      return result
+          .whereType<Map>()
+          .map((item) => _parsePgcItem(item.cast<String, dynamic>()))
+          .whereType<VideoItem>()
+          .toList();
+    } catch (_) {
+      // 版权搜索失败不能影响普通视频结果
+      return const [];
+    }
+  }
+
+  /// 版权条目的字段和普通稿件不同：没有 bvid，用 season_id 标识，
+  /// 标题可能带 <em class="keyword"> 高亮标签。
+  VideoItem? _parsePgcItem(Map<String, dynamic> raw) {
+    final seasonId = (raw['season_id'] as num?)?.toInt();
+    if (seasonId == null || seasonId <= 0) return null;
+    final rawTitle = (raw['title'] as String?)?.trim() ?? '';
+    final title = rawTitle.isNotEmpty
+        ? rawTitle
+        : ((raw['org_title'] as String?)?.trim() ?? '');
+    if (title.isEmpty) return null;
+    final typeName = (raw['season_type_name'] as String?)?.trim() ?? '';
+    final indexShow = (raw['index_show'] as String?)?.trim() ?? '';
+    final subtitle = [
+      if (typeName.isNotEmpty) typeName,
+      if (indexShow.isNotEmpty) indexShow,
+    ].join(' · ');
+    return VideoItem(
+      bvid: '',
+      title: _cleanText(title),
+      author: typeName.isEmpty ? '版权内容' : typeName,
+      cover: _fixPic((raw['cover'] as String?) ?? ''),
+      play: (raw['play'] as num?)?.toInt() ?? 0,
+      durationSeconds: 0,
+      pubdate: 0,
+      seasonId: seasonId,
+      subtitle: subtitle.isEmpty ? null : subtitle,
+    );
   }
 
   Future<List<VideoItem>> _searchFallback(String keyword) async {

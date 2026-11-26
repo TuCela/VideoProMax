@@ -40,6 +40,10 @@ class _AppShellState extends State<AppShell> {
   final ValueNotifier<int> _downloadCount = ValueNotifier<int>(0);
   final ValueNotifier<bool> _settingsPanelOpen = ValueNotifier<bool>(false);
 
+  /// 进入整页设置前所在的目的地。返回时恢复到这里，而不是一律回主页
+  /// —— 从下载 / 历史 / UP空间点进设置的人应该回到原来的页面。
+  AppDestination? _settingsReturnTo;
+
   Timer? _dayNightTimer;
 
   @override
@@ -82,12 +86,30 @@ class _AppShellState extends State<AppShell> {
 
   void _select(AppDestination destination) {
     _settingsPanelOpen.value = false;
+    if (destination == AppDestination.settings) {
+      // 从非设置页切进设置：记住来路，供设置页返回按钮使用。
+      if (_destination.value != AppDestination.settings) {
+        _settingsReturnTo = _destination.value;
+      }
+    } else {
+      // 主动切到别的页面，旧的返回点就失效了。
+      _settingsReturnTo = null;
+    }
     _destination.value = destination;
   }
 
   void _openFullSettings() {
     _settingsPanelOpen.value = false;
+    if (_destination.value != AppDestination.settings) {
+      _settingsReturnTo = _destination.value;
+    }
     _destination.value = AppDestination.settings;
+  }
+
+  /// 从整页设置返回：回到进入前的页面，没有记录时才退回主页。
+  void _closeFullSettings() {
+    _destination.value = _settingsReturnTo ?? AppDestination.home;
+    _settingsReturnTo = null;
   }
 
   void _showHelp() {
@@ -141,24 +163,32 @@ class _AppShellState extends State<AppShell> {
                               onHelp: _showHelp,
                             ),
                             Expanded(
-                              child: IndexedStack(
-                                index: _destination.value ==
-                                        AppDestination.settings
-                                    ? 1
-                                    : 0,
-                                children: [
-                                  HomePage(
-                                    destination: _destination,
-                                    prefs: _prefs,
-                                    onDownloadCountChanged: (count) =>
-                                        _downloadCount.value = count,
-                                  ),
-                                  SettingsPage(
-                                    prefs: _prefs,
-                                    onBack: () => _destination.value =
-                                        AppDestination.home,
-                                  ),
-                                ],
+                              // 导航状态必须在这里被监听：IndexedStack 的
+                              // index 只在构建时求值，不监听 _destination
+                              // 的话，返回和侧栏切页都不会触发重建（表现
+                              // 就是点了没反应）。
+                              child: ValueListenableBuilder<AppDestination>(
+                                valueListenable: _destination,
+                                builder: (context, current, _) {
+                                  return IndexedStack(
+                                    index:
+                                        current == AppDestination.settings
+                                        ? 1
+                                        : 0,
+                                    children: [
+                                      HomePage(
+                                        destination: _destination,
+                                        prefs: _prefs,
+                                        onDownloadCountChanged: (count) =>
+                                            _downloadCount.value = count,
+                                      ),
+                                      SettingsPage(
+                                        prefs: _prefs,
+                                        onBack: _closeFullSettings,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                           ],

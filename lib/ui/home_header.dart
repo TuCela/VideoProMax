@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/window_chrome.dart';
 import 'font_settings.dart';
 import 'surface_settings.dart';
 
@@ -46,7 +47,6 @@ class HomeHeader extends StatefulWidget {
 }
 
 class _HomeHeaderState extends State<HomeHeader> {
-  static const MethodChannel _windowChannel = MethodChannel('videohub/window');
   final FocusNode _searchFocus = FocusNode();
 
   @override
@@ -55,11 +55,7 @@ class _HomeHeaderState extends State<HomeHeader> {
     super.dispose();
   }
 
-  Future<void> _window(String method) async {
-    try {
-      await _windowChannel.invokeMethod<void>(method);
-    } catch (_) {}
-  }
+  Future<void> _window(String method) => WindowChrome.invoke(method);
 
   void _changeFont(int action) {
     switch (action) {
@@ -88,9 +84,11 @@ class _HomeHeaderState extends State<HomeHeader> {
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 1180;
             return GestureDetector(
-              // 顶部栏任意空白处：长按后拖动窗口，双击最大化。
+              // 顶部栏任意空白处：按住就能拖动窗口，双击最大化。
+              // translucent 让搜索框、按钮等子控件优先拿到点击，
+              // 只有空白处的拖动才落到这层。
               behavior: HitTestBehavior.translucent,
-              onLongPressStart: (_) => _window('drag'),
+              onPanStart: (_) => _window('drag'),
               onDoubleTap: () => _window('maximize'),
               child: Row(
                 children: [

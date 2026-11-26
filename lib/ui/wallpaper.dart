@@ -6,17 +6,27 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'videohub_wallpaper_pack.dart';
+import 'videohub_wallpaper_pack_light.dart';
+
 /// 代码绘制的简约壁纸。
 ///
 /// 设计约束（优先级最高的是可读性）：
 /// 1. 所有图案都是低对比、无文字的柔和渐变/细线，不出现高频噪点；
 /// 2. 壁纸层整体按 [WallpaperState.intensity] 做半透明衰减，最终叠加在
-///    `#0B0E14` 底色上，等效亮度上限约 12%，卡片与播放器仍然是完全不透明
-///    深色底板，正文永远落在高对比背景上；
+///    风格对应的底色上（深色为 `#0B0E14`，浅色为 `#F7F8FA`），卡片与
+///    播放器仍然是完全不透明底板，正文永远落在高对比背景上；
 /// 3. 只在窗口留白、间距和页面底板处可见，不参与任何交互。
+///
+/// 除原有 6 套手写风格外，[kWallpaperStyles] 还追加了
+/// `videohub_wallpaper_pack*.dart` 里的 16 套代码壁纸（8 深 + 8 浅）。
 
 /// 一套壁纸风格的绘制函数。
 typedef WallpaperPaint = void Function(Canvas canvas, Size size, bool isDay);
+
+/// 壁纸底板色：深色风格用近黑，浅色风格用浅灰白。
+const Color kWallpaperDarkBase = Color(0xFF0B0E14);
+const Color kWallpaperLightBase = Color(0xFFF7F8FA);
 
 /// 壁纸风格元数据。
 @immutable
@@ -27,6 +37,8 @@ class WallpaperStyle {
     required this.desc,
     required this.paint,
     this.dayNight = false,
+    this.lightBase = false,
+    this.recommendedOpacity,
   });
 
   final String id;
@@ -36,6 +48,18 @@ class WallpaperStyle {
 
   /// 是否有「日间 / 夜间」两套配色。
   final bool dayNight;
+
+  /// 是否为浅色底板。浅色壁纸铺在 [kWallpaperLightBase] 上，
+  /// 深色壁纸铺在 [kWallpaperDarkBase] 上 —— 底板选错会让浅色
+  /// 壁纸整体发灰。
+  final bool lightBase;
+
+  /// 切到这套壁纸时建议的强度；null 表示不改动用户当前强度。
+  /// 浅色壁纸通常接近 1.0，深色壁纸在 0.35~0.50 之间。
+  final double? recommendedOpacity;
+
+  /// 这套壁纸的强度上限：浅色到 1.0，深色沿用原来的 0.7。
+  double get maxIntensity => lightBase ? 1.0 : 0.7;
 }
 
 Color _c(int value) => Color(value);
@@ -435,8 +459,8 @@ void _paintSlate(Canvas canvas, Size size, bool isDay) {
 
 // ---------------------------------------------------------------- 风格清单
 
-/// 6 套可选壁纸（顺序即设置页展示顺序）。
-const List<WallpaperStyle> kWallpaperStyles = [
+/// 原有 6 套手写壁纸。
+const List<WallpaperStyle> kCoreWallpaperStyles = [
   WallpaperStyle(
     id: 'graphite',
     name: '石墨',
@@ -474,6 +498,36 @@ const List<WallpaperStyle> kWallpaperStyles = [
     desc: '45° 双斜带与细斜线',
     paint: _paintSlate,
   ),
+];
+
+/// 代码壁纸包里的 16 套（8 深 + 8 浅）映射为统一风格。
+/// 深色沿用 [VideoHubWallpaperSpec.recommendedIntensity]，
+/// 浅色使用 [VideoHubNativeLightSpec.recommendedOpacity]。
+final List<WallpaperStyle> kExtraWallpaperStyles = [
+  for (final spec in kVideoHubWallpaperSpecs)
+    WallpaperStyle(
+      id: spec.id,
+      name: spec.name,
+      desc: spec.desc,
+      paint: spec.paint,
+      lightBase: false,
+      recommendedOpacity: spec.recommendedIntensity,
+    ),
+  for (final spec in kVideoHubNativeLightWallpaperSpecs)
+    WallpaperStyle(
+      id: spec.id,
+      name: spec.name,
+      desc: spec.desc,
+      paint: spec.paint,
+      lightBase: true,
+      recommendedOpacity: spec.recommendedOpacity,
+    ),
+];
+
+/// 全部可选壁纸（22 套，顺序即设置页展示顺序）。
+final List<WallpaperStyle> kWallpaperStyles = [
+  ...kCoreWallpaperStyles,
+  ...kExtraWallpaperStyles,
 ];
 
 WallpaperStyle? wallpaperStyleById(String id) {
@@ -561,7 +615,8 @@ class WallpaperSettings {
       next = next.copyWith(auto: false, manualDay: tone == 'day');
     }
     if (intensity != null) {
-      next = next.copyWith(intensity: intensity.clamp(0.0, 0.7));
+      // 浅色壁纸需要接近 1.0，这里不能按深色的 0.7 截断。
+      next = next.copyWith(intensity: intensity.clamp(0.0, 1.0));
     }
     state.value = next;
   }
@@ -586,8 +641,11 @@ class WallpaperCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: Color(0xFF0B0E14)),
+    // 底板跟着风格走：浅色壁纸铺浅灰白，否则整幅会发灰发暗。
+    // 缩略图也走这里，所以预览的底色与全屏一致。
+    final base = style.lightBase ? kWallpaperLightBase : kWallpaperDarkBase;
+    return ColoredBox(
+      color: base,
       child: Opacity(
         opacity: intensity.clamp(0.0, 1.0),
         child: RepaintBoundary(
@@ -635,12 +693,16 @@ class WallpaperBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = state.style;
     if (style == null || state.intensity <= 0.001) {
-      return ColoredBox(color: const Color(0xFF0B0E14), child: child);
+      return ColoredBox(color: kWallpaperDarkBase, child: child);
     }
+    final light = style.lightBase;
     // 日间配色本身更亮，同样强度下会被压得过暗，这里做一点补偿。
-    final effective = isDay
-        ? (state.intensity * 1.25).clamp(0.0, 0.65)
-        : state.intensity;
+    // 浅色壁纸不吃这个补偿，也不能叠压暗 —— 否则整幅会灰掉。
+    final effective = light
+        ? state.intensity.clamp(0.0, 1.0).toDouble()
+        : (isDay
+              ? (state.intensity * 1.25).clamp(0.0, 0.65).toDouble()
+              : state.intensity);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -649,23 +711,25 @@ class WallpaperBackground extends StatelessWidget {
           isDay: isDay,
           intensity: effective,
         ),
-        // 顶部/底部再加一层极淡的压暗，保证标题栏与列表边缘的对比度。
-        IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF000000).withValues(alpha: 0.10),
-                  Colors.transparent,
-                  const Color(0xFF000000).withValues(alpha: 0.12),
-                ],
-                stops: const [0, 0.45, 1],
+        // 深色壁纸补一层极淡压暗，保证标题栏与列表边缘的对比度；
+        // 浅色壁纸叠黑色渐变只会发灰，这里跳过。
+        if (!light)
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF000000).withValues(alpha: 0.10),
+                    Colors.transparent,
+                    const Color(0xFF000000).withValues(alpha: 0.12),
+                  ],
+                  stops: const [0, 0.45, 1],
+                ),
               ),
             ),
           ),
-        ),
         child,
       ],
     );
