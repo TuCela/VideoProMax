@@ -949,6 +949,9 @@ _player.stream.position.listen((value) {
       Media(url, httpHeaders: _client.streamHeaders),
       play: false,
     );
+    // open 是长 await，期间用户可能已经点了下一个视频。这里必须再比对一次，
+    // 否则过期请求会往下走，把旧音轨挂到新打开的文件上导致无声。
+    if (seq != _openSeq) return;
     if (audio != null) {
       await _attachAudio(_player.platform, audio, seq);
       if (seq != _openSeq) return;
@@ -984,10 +987,15 @@ _player.stream.position.listen((value) {
     DashStream audio,
     int seq,
   ) async {
+    // 挂音轨前再比对一次：若用户已切到下一个视频，绝不能把本条音轨
+    // 挂到新文件上（audio-add 作用于「当前文件」，会打乱音轨编号）。
+    if (seq != _openSeq) return;
     try {
       await platform.command(['audio-add', audio.baseUrl, 'select']);
     } catch (_) {}
-    for (var attempt = 0; attempt < 6; attempt++) {
+    // 网络慢时外部音轨要几秒才就绪，1.2s 太短，容易在 aid=no 时退回
+    // auto 却仍没音轨可选；延长到 4s。
+    for (var attempt = 0; attempt < 20; attempt++) {
       if (seq != _openSeq) return;
       try {
         final aid = await platform.getProperty('aid');
@@ -995,6 +1003,7 @@ _player.stream.position.listen((value) {
       } catch (_) {}
       // 第 3 轮补挂一次：CDN 抖动时首次 audio-add 可能直接失败。
       if (attempt == 2) {
+        if (seq != _openSeq) return;
         try {
           await platform.command(['audio-add', audio.baseUrl, 'select']);
         } catch (_) {}
