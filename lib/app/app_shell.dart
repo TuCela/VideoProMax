@@ -94,7 +94,7 @@ class _AppShellState extends State<AppShell> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.transparent,
+        backgroundColor: SurfaceSettings.instance.color,
         title: const Text('Video Pro Max'),
         content: const Text(
           'Windows 桌面端视频客户端\n当前版本：0.2.0\n视频来源：哔哩哔哩',

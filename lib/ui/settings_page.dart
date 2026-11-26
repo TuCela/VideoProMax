@@ -494,7 +494,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required List<Widget> children,
   }) {
     return Card(
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
