@@ -55,7 +55,7 @@ flutter build windows --release
 
 1. 启动后点右上角登录，用哔哩哔哩手机客户端扫码。
 2. 登录态只保存在本机，不上传任何第三方服务器：
-   `%APPDATA%\com.videohub\video_hub_flutter\`
+   `%APPDATA%\com.videohub\VideoProMax\`
 3. 部分接口（如 UP 主空间）必须带登录 Cookie，未登录时 B 站会返回 `-352` 风控，界面会提示先登录。
 
 ## 项目结构

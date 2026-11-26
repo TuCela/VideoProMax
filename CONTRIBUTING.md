@@ -12,7 +12,7 @@ flutter build windows --release
 
 - Flutter：Dart SDK `^3.14.0`（本项目在 3.50.1 上验证）
 - 平台：目前只做 Windows 桌面
-- `flutter build windows --release` 前请确认 `video_hub_flutter.exe` 没在运行，否则会报 `MSB3073`
+- `flutter build windows --release` 前请确认 `VideoProMax.exe` 没在运行，否则会报 `MSB3073`
 
 ## 提交之前
 

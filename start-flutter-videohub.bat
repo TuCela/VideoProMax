@@ -3,7 +3,7 @@ chcp 65001 >nul
 title Video Pro Max (Flutter)
 cd /d "%~dp0"
 
-if not exist "build\windows\x64\runner\Release\video_hub_flutter.exe" (
+if not exist "build\windows\x64\runner\Release\VideoProMax.exe" (
   echo [ERROR] 还没有构建产物，请先在项目根目录执行：
   echo   flutter build windows --release
   echo.
@@ -12,4 +12,4 @@ if not exist "build\windows\x64\runner\Release\video_hub_flutter.exe" (
   exit /b 1
 )
 
-start "" "build\windows\x64\runner\Release\video_hub_flutter.exe"
+start "" "build\windows\x64\runner\Release\VideoProMax.exe"

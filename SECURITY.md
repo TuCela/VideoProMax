@@ -20,7 +20,7 @@
 
 ## 已知的安全边界
 
-- 登录态仅保存在本机 `%APPDATA%\com.videohub\video_hub_flutter\`，不上传任何第三方服务器。
+- 登录态仅保存在本机 `%APPDATA%\com.videohub\VideoProMax\`，不上传任何第三方服务器。
 - 应用会调用本机 `ffmpeg.exe` 合并下载的音视频；请只使用可信来源的 ffmpeg。
 - 「在浏览器打开」通过系统默认浏览器完成，只接受 http/https 链接。
 

@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app/app_shell.dart';
+import 'bili/data_migration.dart';
 import 'ui/font_settings.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  // App rename changed the support dir; move old data over before starting.
+  await migrateLegacyData();
   runApp(const VideoHubApp());
 }
 

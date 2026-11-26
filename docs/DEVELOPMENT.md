@@ -41,7 +41,7 @@ powershell -ExecutionPolicy Bypass -File scripts/fetch-ffmpeg.ps1
 ## 无交互自检
 
 ```bash
-VIDEOHUB_SMOKE=BV1xx411c7m9 ./build/windows/x64/runner/Release/video_hub_flutter.exe
+VIDEOHUB_SMOKE=BV1xx411c7m9 ./build/windows/x64/runner/Release/VideoProMax.exe
 ```
 
 日志写到 `%TEMP%\videohub-smoke.log`，每秒一行。关注 `pos`（进度）、`ao`（音频输出，应为 `wasapi`，为空即没声音）、`aPts`（音频时钟应逐秒推进）、`dm`（弹幕条数）。
@@ -57,7 +57,7 @@ VIDEOHUB_SMOKE=BV1xx411c7m9 ./build/windows/x64/runner/Release/video_hub_flutter
 
 ## 数据目录
 
-`%APPDATA%\com.videohub\video_hub_flutter\`：`prefs.json`、`bilibili-auth.json`、`history.json`、下载记录。这些文件包含登录态，**不要提交、不要打进分发包**。
+`%APPDATA%\com.videohub\VideoProMax\`：`prefs.json`、`bilibili-auth.json`、`history.json`、下载记录。这些文件包含登录态，**不要提交、不要打进分发包**。
 
 ## 已知技术债
 

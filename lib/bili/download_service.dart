@@ -237,7 +237,7 @@ class DownloadService {
     try {
       if (!ffmpegExe.existsSync()) {
         throw Exception(
-          '未找到 ffmpeg.exe：请把它放到软件目录（与 video_hub_flutter.exe 同级）或加入系统 PATH',
+          '未找到 ffmpeg.exe：请把它放到软件目录（与 VideoProMax.exe 同级）或加入系统 PATH',
         );
       }
       final outDir = downloadDir;
