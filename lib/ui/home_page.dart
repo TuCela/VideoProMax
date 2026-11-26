@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
 import 'package:flutter/services.dart'
 show
         Clipboard,
@@ -123,6 +124,18 @@ class HomePageState extends State<HomePage> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   Duration _buffer = Duration.zero;
+
+  /// 播放进度 / 缓冲的「局部刷新」通道。
+  ///
+  /// 进度每秒更新十余次，如果每次都 setState，整页（数千行）会跟着重建，
+  /// 在 180Hz 这类高刷屏上很容易错过垂直同步，表现为「播放器没掉帧但画面
+  /// 一顿一顿」。这里只在需要实时数字的组件上监听，不再重建整页。
+  final ValueNotifier<Duration> _positionUI = ValueNotifier<Duration>(
+    Duration.zero,
+  );
+  final ValueNotifier<Duration> _bufferUI = ValueNotifier<Duration>(
+    Duration.zero,
+  );
   int _bufferTargetSeconds = 60;
 
   final HistoryStore _history = HistoryStore();
@@ -205,6 +218,10 @@ class HomePageState extends State<HomePage> {
     // 全局键盘监听：全屏时按 Esc 退出。用 HardwareKeyboard 而非页面级
     // Focus，因为 media_kit 的软件内全屏是新 push 的路由，页面 Focus 收不到。
     HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    // 出帧诊断只在自检 / 追踪模式下挂载，正常使用零开销。
+    if (_smokeFresh || _traceOn) {
+      SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);
+    }
     _listScroll.addListener(_onListScroll);
     _player = Player(
       configuration: const PlayerConfiguration(bufferSize: 32 * 1024 * 1024),
@@ -217,7 +234,9 @@ class HomePageState extends State<HomePage> {
     unawaited(_downloadStore.load());
     _subs.add(
 _player.stream.position.listen((value) {
-        if (mounted) setState(() => _position = value);
+        // 只更新逻辑值与局部 notifier，不触发整页重建。
+        _position = value;
+        _positionUI.value = value;
         DanmakuBridge.instance.updatePlaybackTime(value, _duration);
         _recordProgress();
       }),
@@ -230,7 +249,8 @@ _player.stream.position.listen((value) {
     );
     _subs.add(
       _player.stream.buffer.listen((value) {
-        if (mounted) setState(() => _buffer = value);
+        _buffer = value;
+        _bufferUI.value = value;
       }),
     );
     _subs.add(
@@ -303,6 +323,10 @@ _player.stream.position.listen((value) {
     await _auth.load();
     await _history.load();
     await _prefs.load();
+    // 恢复上次手动选定的画质（0 表示自动：默认最高 1080P）。
+    if (_prefs.playQualityId > 0) {
+      _preferredQn = _prefs.playQualityId;
+    }
     // 登录后 Cookie 才可用，补写一次全局头，audio-add 才能带全凭据。
     try {
       await (_player.platform as dynamic).setProperty(
@@ -361,6 +385,11 @@ _player.stream.position.listen((value) {
   /// 的时序会写进临时日志，用于定位「快速切换后无声」这类竞态。
   static final bool _traceOn =
       (Platform.environment['VIDEOHUB_TRACE'] ?? '') == '1';
+
+  /// 自检模式：自动播放时忽略续播进度，从 0 秒开始，便于复现播放问题。
+  static final bool _smokeFresh =
+      (Platform.environment['VIDEOHUB_SMOKE'] ?? '').isNotEmpty &&
+      (Platform.environment['VIDEOHUB_SMOKE_RESUME'] ?? '') != '1';
   static bool _traceStarted = false;
 
   void _trace(String message) {
@@ -396,6 +425,26 @@ _player.stream.position.listen((value) {
     }
   }
 
+  // ---- Flutter 出帧诊断（仅自检 / 追踪模式）----
+  // 播放器层不掉帧但画面仍一顿一顿，通常是 raster/build 超时导致的重复帧，
+  // 这里统计每秒的帧数与最长耗时，用于区分「播放器问题」与「UI 合成问题」。
+  int _fFrames = 0;
+  int _fJank = 0;
+  int _fMaxRasterUs = 0;
+  int _fMaxBuildUs = 0;
+
+  void _onFrameTimings(List<FrameTiming> timings) {
+    for (final t in timings) {
+      _fFrames += 1;
+      final raster = t.rasterDuration.inMicroseconds;
+      final build = t.buildDuration.inMicroseconds;
+      if (raster > _fMaxRasterUs) _fMaxRasterUs = raster;
+      if (build > _fMaxBuildUs) _fMaxBuildUs = build;
+      // 超过 20ms 的帧在 60Hz 上必然表现为一次可见的停顿。
+      if (t.totalSpan.inMicroseconds > 20000) _fJank += 1;
+    }
+  }
+
   void _startSmokeLog() {
     final file = File('${Directory.systemTemp.path}\\videohub-smoke.log');
     try {
@@ -417,16 +466,38 @@ _player.stream.position.listen((value) {
         final eof = await _prop('eof-reached');
         final volProp = await _prop('volume');
         final muteProp = await _prop('mute');
+        // 出帧/解码诊断：定位「画面一卡一卡」时靠这几项区分是解码、
+        // 硬解未生效、还是渲染丢帧。
+        final hwdec = await _prop('hwdec-current');
+        final drop = await _prop('frame-drop-count');
+        final decDrop = await _prop('decoder-frame-drop-count');
+        final mistimed = await _prop('mistimed-frame-count');
+        final dispFps = await _prop('display-fps');
+        final vfFps = await _prop('estimated-vf-fps');
+        final srcW = await _prop('video-params/w');
+        final srcH = await _prop('video-params/h');
+        final pixFmt = await _prop('video-params/pixelformat');
+        final cacheDur = await _prop('demuxer-cache-duration');
         file.writeAsStringSync(
           '[$ticks] pos=${_position.inMilliseconds} dur=${_duration.inMilliseconds} '
           'buf=${_buffer.inSeconds}s speed=$speed aPts=$audioPts vPts=$videoPts ao=$ao '
           'vol=$volProp mute=$muteProp '
-          'paused=$paused cacheSpeed=$cacheSpeed eof=$eof '
+          'paused=$paused cacheSpeed=$cacheSpeed cacheDur=$cacheDur eof=$eof '
           'v=${tracks.video.length} a=${tracks.audio.length} '
+          'src=${srcW}x$srcH fmt=$pixFmt hwdec=$hwdec '
+          'drop=$drop decDrop=$decDrop mistimed=$mistimed '
+          'dispFps=$dispFps vfFps=$vfFps '
+          'frames=$_fFrames jank=$_fJank '
+          'maxRaster=${(_fMaxRasterUs / 1000).toStringAsFixed(1)}ms '
+          'maxBuild=${(_fMaxBuildUs / 1000).toStringAsFixed(1)}ms '
           'dm=${_danmaku.length} dmCid=$_danmakuCid dmOn=$_danmakuOn '
           'msg=${_message ?? "-"}\n',
           mode: FileMode.append,
         );
+        _fFrames = 0;
+        _fJank = 0;
+        _fMaxRasterUs = 0;
+        _fMaxBuildUs = 0;
       } catch (_) {}
       if (ticks >= 20) timer.cancel();
     });
@@ -761,7 +832,7 @@ _player.stream.position.listen((value) {
     if (!mounted) return;
     final stream = _pickDefault(data.videos, preferQn: _preferredQn);
     var resumeAt = startAt;
-    if (resumeAt <= Duration.zero) {
+    if (!_smokeFresh && resumeAt <= Duration.zero) {
       final saved = _savedEntry('v:${item.bvid}:${data.cid}');
       if (saved != null && saved.positionSeconds >= 5) {
         final total = data.durationSeconds;
@@ -936,7 +1007,7 @@ _player.stream.position.listen((value) {
       if (!mounted) return;
       final stream = _pickDefault(data.videos, preferQn: _preferredQn);
       var resumeAt = startAt;
-      if (resumeAt <= Duration.zero) {
+      if (!_smokeFresh && resumeAt <= Duration.zero) {
         final saved = _savedEntry('ep:${episode.epId}');
         if (saved != null && saved.positionSeconds >= 5) {
           final total = data.durationSeconds;
@@ -1014,7 +1085,13 @@ _player.stream.position.listen((value) {
       return;
     }
     await _player.open(
-      Media(url, httpHeaders: _client.streamHeaders),
+      Media(
+        url,
+        httpHeaders: _client.streamHeaders,
+        // 续播位置交给 mpv 在加载阶段定位（mpv 的 start 属性），比打开后
+        // 再 seek 快得多，也不会出现「加载完再定位」的二次卡顿。
+        start: startAt > const Duration(seconds: 1) ? startAt : null,
+      ),
       play: false,
     );
     _trace('opened seq=$seq');
@@ -1037,19 +1114,24 @@ _player.stream.position.listen((value) {
     // 必须等起播后再 seek：open/audio-add/play 都会把位置重置到 0，
     // 且文件刚 load 时 mpv 可能直接丢弃 seek，所以要校验并重试。
     if (startAt > const Duration(seconds: 1)) {
-      for (var attempt = 0; attempt < 5; attempt++) {
-        // 已切到下一个视频就别再 seek 了：否则会给新视频乱定位，
-        // 还会白白占着串行链几秒。
+      // 续播位置已通过 Media.start 交给 mpv 在加载阶段定位。这里只做
+      // 轻量校验：远程 DASH 的一次 seek 可能要好几秒，过去每 650ms 重发
+      // 一次会不断打断尚未完成的 seek，表现为每次续播都先卡住几秒。
+      for (var attempt = 0; attempt < 8; attempt++) {
         if (seq != _openSeq) return;
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        if (seq != _openSeq) return;
-        try {
-          await _player.seek(startAt);
-        } catch (_) {}
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         if (seq != _openSeq) return;
         final current = _player.state.position;
-        if ((current - startAt).abs() <= const Duration(seconds: 5)) break;
+        if ((current - startAt).abs() <= const Duration(seconds: 8)) return;
+        final seeking = await _prop('seeking');
+        // 还在定位就耐心等，别再叠一次 seek。
+        if (seeking == 'yes' || seeking == 'true') continue;
+        // 明确没在定位且位置不对，才补一次。
+        if (attempt >= 2) {
+          try {
+            await _player.seek(startAt);
+          } catch (_) {}
+        }
       }
     }
   }
@@ -1223,6 +1305,12 @@ _player.stream.position.listen((value) {
 
   /// 默认画质：当前视频可选画质里最高的一档。
   /// 先比分辨率，再比码率，最后比 qn id；不再沿用上次选择或限死 1080P。
+  /// 选流：有手动偏好时按偏好选，否则默认最高 1080P。
+  ///
+  /// 默认不直上 4K/8K：播放器窗口通常只有一千像素宽，4K 带来数倍码率，
+  /// 而 Windows 上 libmpv 走 d3d11va-copy（每帧还要回拷到 CPU），在高刷
+  /// 屏上容易表现为「画面一顿一顿」。需要 4K 可在画质菜单手动选，选择
+  /// 会被记住。
   DashStream _pickDefault(List<DashStream> videos, {int? preferQn}) {
     final sorted = List<DashStream>.from(videos)
       ..sort((a, b) {
@@ -1232,15 +1320,28 @@ _player.stream.position.listen((value) {
         if (byBandwidth != 0) return byBandwidth;
         return b.id.compareTo(a.id);
       });
-    return sorted.first;
+    if (preferQn != null) {
+      for (final stream in sorted) {
+        if (stream.id == preferQn) return stream;
+      }
+      // 本片没有该档位：退到不高于它的最高一档；全都更高则取最低。
+      final lower = sorted.where((stream) => stream.id < preferQn).toList();
+      return lower.isNotEmpty ? lower.first : sorted.last;
+    }
+    final capped = sorted.where((stream) => stream.height <= 1080).toList();
+    return capped.isNotEmpty ? capped.first : sorted.last;
   }
 
-  Future<void> _switchQuality(DashStream stream) async {
+  Future<void> _switchQuality(DashStream stream, {bool remember = true}) async {
     if (_switching || _stream?.id == stream.id || _play == null) return;
     final resumeAt = _position;
+    if (remember) {
+      _preferredQn = stream.id;
+      _prefs.playQualityId = stream.id;
+      unawaited(_prefs.save());
+    }
     setState(() {
       _switching = true;
-      _preferredQn = stream.id;
       _stream = stream;
     });
     try {
@@ -1250,6 +1351,16 @@ _player.stream.position.listen((value) {
     } finally {
       if (mounted) setState(() => _switching = false);
     }
+  }
+
+  /// 画质菜单选「自动」：清掉手动偏好，回到默认策略（最高 1080P）。
+  Future<void> _switchQualityAuto() async {
+    final play = _play;
+    if (play == null) return;
+    _preferredQn = null;
+    _prefs.playQualityId = 0;
+    unawaited(_prefs.save());
+    await _switchQuality(_pickDefault(play.videos), remember: false);
   }
 
   /// 每 5 秒写一次进度；force 用于暂停 / 切集 / 关闭时立即落盘
@@ -1426,6 +1537,8 @@ _player.stream.position.listen((value) {
       _duration = Duration.zero;
       _buffer = Duration.zero;
     });
+    _positionUI.value = Duration.zero;
+    _bufferUI.value = Duration.zero;
   }
 
   Future<void> _cycleRate() async {
@@ -1765,6 +1878,9 @@ _player.stream.position.listen((value) {
     widget.destination?.removeListener(_onDestinationChanged);
     _downloadStore.removeListener(_onDownloadStoreChanged);
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    if (_smokeFresh || _traceOn) {
+      SchedulerBinding.instance.removeTimingsCallback(_onFrameTimings);
+    }
     _recordProgress(force: true);
     _noteTimer?.cancel();
     if (_pipMode) PipWindow.exit();
@@ -1776,6 +1892,8 @@ _player.stream.position.listen((value) {
     _listScroll.removeListener(_onListScroll);
     _pageScroll.dispose();
     _listScroll.dispose();
+    _positionUI.dispose();
+    _bufferUI.dispose();
     super.dispose();
   }
 
@@ -2240,16 +2358,19 @@ _player.stream.position.listen((value) {
                 Video(controller: _videoController, fit: _fit),
                 if (_danmakuOn && _danmaku.isNotEmpty)
                   Positioned.fill(
-                    child: DanmakuLayer(
-                      key: ValueKey('pip-$_danmakuCid'),
-                      items: _danmaku,
-                      position: _position,
-                      playing: _playing,
-                      enabled: _danmakuOn,
-                      opacity: _dmOpacity,
-                      fontScale: _dmScale,
-                      speed: _dmSpeed,
-                      area: _dmArea,
+                    child: ValueListenableBuilder<Duration>(
+                      valueListenable: _positionUI,
+                      builder: (_, position, __) => DanmakuLayer(
+                        key: ValueKey('pip-$_danmakuCid'),
+                        items: _danmaku,
+                        position: position,
+                        playing: _playing,
+                        enabled: _danmakuOn,
+                        opacity: _dmOpacity,
+                        fontScale: _dmScale,
+                        speed: _dmSpeed,
+                        area: _dmArea,
+                      ),
                     ),
                   ),
               ],
@@ -2625,7 +2746,7 @@ const SizedBox(height: 10),
                 streams: _play!.videos,
                 currentId: _stream?.id,
                 onSelected: _switchQuality,
-                onAuto: () => _switchQuality(_pickDefault(_play!.videos)),
+                onAuto: _switchQualityAuto,
               ),
             const SizedBox(width: 6),
             _BufferTargetButton(
@@ -2633,18 +2754,24 @@ const SizedBox(height: 10),
               onChanged: _previewBufferTarget,
               onFinished: _saveBufferTarget,
             ),
-            if (_buffer > Duration.zero) ...[
-              const SizedBox(width: 8),
-              Text(
-                '缓冲 ${_buffer.inSeconds}s',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: _buffer.inSeconds < 3
-                      ? const Color(0xFFFFB86B)
-                      : const Color(0xFF657086),
-                ),
-              ),
-            ],
+            ValueListenableBuilder<Duration>(
+              valueListenable: _bufferUI,
+              builder: (_, buffer, __) {
+                if (buffer <= Duration.zero) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    '缓冲 ${buffer.inSeconds}s',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: buffer.inSeconds < 3
+                          ? const Color(0xFFFFB86B)
+                          : const Color(0xFF657086),
+                    ),
+                  ),
+                );
+              },
+            ),
             const Spacer(),
             _ToolChip(
               icon: Icons.download_rounded,
@@ -2819,7 +2946,7 @@ class _QualityMenu extends StatelessWidget {
       itemBuilder: (_) => [
         const PopupMenuItem<int>(
           value: -1,
-          child: Text('自动（最高）', style: TextStyle(fontSize: 12)),
+          child: Text('自动（1080P 优先）', style: TextStyle(fontSize: 12)),
         ),
         const PopupMenuDivider(),
         for (final stream in streams)

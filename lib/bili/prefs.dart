@@ -35,6 +35,9 @@ class AppPrefs {
   /// 下载画质 id（-1 表示每集都弹窗选择，其它为固定的画质 id）。
   int downloadQualityId = -1;
 
+  /// 在线播放手动选定的画质 id（0 表示自动：默认最高 1080P）。
+  int playQualityId = 0;
+
   /// 下载线程数（1~16）。
   int downloadThreads = 4;
 
@@ -83,6 +86,7 @@ class AppPrefs {
       if (surfaceOpacity == 0.70) surfaceOpacity = 0.50;
       downloadQualityId =
           (raw['downloadQualityId'] as num?)?.toInt() ?? downloadQualityId;
+      playQualityId = (raw['playQualityId'] as num?)?.toInt() ?? playQualityId;
       downloadThreads =
           (raw['downloadThreads'] as num?)?.toInt() ?? downloadThreads;
       downloadSpeedLimit =
@@ -119,6 +123,7 @@ class AppPrefs {
           'wallpaperDay': wallpaperDay,
           'surfaceOpacity': surfaceOpacity,
           'downloadQualityId': downloadQualityId,
+          'playQualityId': playQualityId,
           'downloadThreads': downloadThreads,
           'downloadSpeedLimit': downloadSpeedLimit,
           'fontDelta': fontDelta,
