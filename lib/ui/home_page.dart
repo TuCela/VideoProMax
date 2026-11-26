@@ -146,6 +146,11 @@ class HomePageState extends State<HomePage> {
   List<String> _streamUrls = const [];
   int _streamUrlIndex = 0;
   Timer? _stallTimer;
+
+  /// 打开代次：每发起一次新的播放请求就自增。旧请求在每个 await 后比对，
+  /// 发现已过期立即退出，避免快速连点多个视频时 open / audio-add / aid
+  /// 三条序列交错，把刚挂上的音轨冲掉（表现为视频在播但没声音）。
+  int _openSeq = 0;
   double _rate = 1.0;
   static const List<double> _rates = [1.0, 1.25, 1.5, 2.0, 0.75];
 
@@ -916,10 +921,12 @@ _player.stream.position.listen((value) {
     Duration startAt,
   ) async {
     // 主线路 + 备用线路；主线路不稳定时看门狗会自动切下一个。
+    final seq = ++_openSeq;
     _streamUrls = [video.baseUrl, ...video.backupUrls];
     _streamUrlIndex = 0;
-    await _openStreamAtCurrent(video, audio, startAt);
-    _watchStall(video, audio, startAt);
+    await _openStreamAtCurrent(video, audio, startAt, seq);
+    if (seq != _openSeq) return;
+    _watchStall(video, audio, startAt, seq);
   }
 
   /// 按 [_streamUrlIndex] 指向的线路打开媒体。
@@ -927,35 +934,30 @@ _player.stream.position.listen((value) {
     DashStream video,
     DashStream? audio,
     Duration startAt,
+    int seq,
   ) async {
+    if (seq != _openSeq) return;
     final url = _streamUrls[_streamUrlIndex];
+    // 先停掉上一条：audio-add 是挂在「当前文件」上的，不先清空的话
+    // 上一条的 external audio 会残留到新文件，音轨编号随之错位。
+    try {
+      await _player.stop();
+    } catch (_) {}
+    if (seq != _openSeq) return;
     await _player.open(
       Media(url, httpHeaders: _client.streamHeaders),
       play: false,
     );
     if (audio != null) {
-      try {
-        final platform = _player.platform;
-        await (platform as dynamic).command([
-          'audio-add',
-          audio.baseUrl,
-          'select',
-        ]);
-        // audio-add 失败时 media_kit 只把错误写进日志，不会抛异常，
-        // 所以主动校验一次 aid；没选中音轨就让 mpv 自动选。
-        final aid = await (platform as dynamic).getProperty('aid');
-        if (aid == null || '$aid' == 'no') {
-          await Future<void>.delayed(const Duration(milliseconds: 250));
-          await (platform as dynamic).setProperty('aid', 'auto');
-        }
-      } catch (_) {
-        // 音轨挂载失败时 mpv 会尝试从视频流里取音频
-      }
+      await _attachAudio(_player.platform, audio, seq);
+      if (seq != _openSeq) return;
     }
     if (_rate != 1.0) {
       await _player.setRate(_rate);
     }
+    if (seq != _openSeq) return;
     await _player.play();
+    if (seq != _openSeq) return;
     // 必须等起播后再 seek：open/audio-add/play 都会把位置重置到 0，
     // 且文件刚 load 时 mpv 可能直接丢弃 seek，所以要校验并重试。
     if (startAt > const Duration(seconds: 1)) {
@@ -971,11 +973,56 @@ _player.stream.position.listen((value) {
     }
   }
 
+  /// 把 B站 DASH 的独立音频挂到当前媒体，并确认真的选中了音轨。
+  ///
+  /// mpv 的 audio-add 要先联网取流头，失败也只写日志、不抛异常，
+  /// 读一次 aid 往往还是 no，所以这里轮询确认；中途发现代次已变就放弃，
+  /// 避免旧请求把新请求刚选好的音轨改掉。
+  Future<void> _attachAudio(
+    dynamic platform,
+    DashStream audio,
+    int seq,
+  ) async {
+    try {
+      await platform.command(['audio-add', audio.baseUrl, 'select']);
+    } catch (_) {}
+    for (var attempt = 0; attempt < 6; attempt++) {
+      if (seq != _openSeq) return;
+      try {
+        final aid = await platform.getProperty('aid');
+        if (aid != null && '$aid' != 'no' && '$aid' != '') return;
+      } catch (_) {}
+      // 第 3 轮补挂一次：CDN 抖动时首次 audio-add 可能直接失败。
+      if (attempt == 2) {
+        try {
+          await platform.command(['audio-add', audio.baseUrl, 'select']);
+        } catch (_) {}
+      }
+      // 第 4 轮起退回自动选轨，避免一直卡在手工指定上。
+      if (attempt >= 3) {
+        try {
+          await platform.setProperty('aid', 'auto');
+        } catch (_) {}
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
   /// 卡顿看门狗：B站主 CDN 偶尔给截断/极慢的流，4 秒还没缓冲就换备用线路。
-  void _watchStall(DashStream video, DashStream? audio, Duration startAt) {
+  void _watchStall(
+    DashStream video,
+    DashStream? audio,
+    Duration startAt,
+    int seq,
+  ) {
     _stallTimer?.cancel();
+    if (seq != _openSeq) return;
     var checks = 0;
     _stallTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (seq != _openSeq) {
+        timer.cancel();
+        return;
+      }
       checks += 1;
       // 已正常起播：撤掉看门狗。
       if (_player.state.position > const Duration(milliseconds: 500) ||
@@ -998,7 +1045,7 @@ _player.stream.position.listen((value) {
         setState(() => _message = '主线路较慢，正在切换备用线路…');
       }
       try {
-        await _openStreamAtCurrent(video, audio, startAt);
+        await _openStreamAtCurrent(video, audio, startAt, seq);
       } catch (_) {
         if (mounted) _snack('备用线路也加载失败');
       }
