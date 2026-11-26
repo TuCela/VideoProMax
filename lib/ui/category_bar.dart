@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 import 'package:flutter/material.dart';
 
 /// 首页分区：rid 为普通分区 id；seasonType 非空表示版权分区（番剧 1 / 国创 4 / 综艺 7）。

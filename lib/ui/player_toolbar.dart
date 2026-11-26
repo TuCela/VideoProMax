@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 import 'package:flutter/material.dart';
 
 /// 视频下方的一排扁平工具栏（选集 / 画面比例 / 弹幕 / 画中画 / 下载）。

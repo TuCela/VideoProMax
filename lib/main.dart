@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 

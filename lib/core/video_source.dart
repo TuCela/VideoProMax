@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 import '../player/playback_plan.dart';
 import 'video_ref.dart';
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_hub_flutter/core/video_ref.dart';
 import 'package:video_hub_flutter/core/video_source.dart';

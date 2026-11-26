@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 enum AppDestination { home, history, downloads, space, settings }
 
 extension AppDestinationLabel on AppDestination {
