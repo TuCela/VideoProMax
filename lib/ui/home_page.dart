@@ -19,12 +19,15 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../app/app_destination.dart';
+import '../app/proxy_settings.dart';
 import '../bili/auth.dart';
 import '../bili/client.dart';
 import '../bili/download_service.dart';
 import '../bili/download_store.dart';
 import '../bili/history.dart';
 import '../bili/models.dart';
+import '../yt/youtube_client.dart';
+import '../yt/ytdlp.dart';
 import '../bili/prefs.dart';
 import 'category_bar.dart';
 import 'comments_panel.dart';
@@ -92,6 +95,11 @@ class HomePageState extends State<HomePage> {
 
   /// 当前视频源平台：bili / youtube / other。
   String _platform = 'bili';
+
+  bool get _isYoutube => _platform == 'youtube';
+
+  /// YouTube 视频简介（B站走 _detail，YouTube 没有详情接口）。
+  String _ytDescription = '';
 
   VideoItem? _current;
   ResolvedPlay? _play;
@@ -313,8 +321,20 @@ _player.stream.position.listen((value) {
     await _prefs.save();
   }
 
+  /// 传给 mpv / media_kit 的请求头。
+  ///
+  /// YouTube 的 googlevideo 直链不能带 B站的 Referer，否则可能被判为盗链，
+  /// 只保留 User-Agent。
+  Map<String, String> _mediaHeaders() {
+    if (!_isYoutube) return _client.streamHeaders;
+    return {
+      if (_client.streamHeaders['User-Agent'] != null)
+        'User-Agent': _client.streamHeaders['User-Agent']!,
+    };
+  }
+
   /// mpv 全局请求头（逗号分隔的 `Name: value` 列表）。
-  String _mpvHeaderFields() => _client.streamHeaders.entries
+  String _mpvHeaderFields() => _mediaHeaders().entries
       .map((e) => '${e.key}: ${e.value}')
       .join(',');
 
@@ -323,8 +343,18 @@ _player.stream.position.listen((value) {
     await _auth.load();
     await _history.load();
     await _prefs.load();
+    await ProxySettings.instance.load(_prefs);
+    await YtDlp.instance.init();
+    try {
+      await (_player.platform as dynamic).setProperty(
+        'http-proxy',
+        ProxySettings.instance.mpvProxy,
+      );
+    } catch (_) {}
     // 恢复上次手动选定的画质（0 表示自动：默认最高 1080P）。
-    if (_prefs.playQualityId > 0) {
+    if (_isYoutube) {
+      if (_prefs.ytQualityId > 0) _preferredQn = _prefs.ytQualityId;
+    } else if (_prefs.playQualityId > 0) {
       _preferredQn = _prefs.playQualityId;
     }
     // 登录后 Cookie 才可用，补写一次全局头，audio-add 才能带全凭据。
@@ -360,6 +390,25 @@ _player.stream.position.listen((value) {
       setState(() => _page = 3);
     } else if (initialDestination == AppDestination.space) {
       _openOwnSpace();
+    }
+
+    // YouTube 自检：VIDEOHUB_SMOKE_YT=视频id 启动后自动切源并播放。
+    final smokeYt = Platform.environment['VIDEOHUB_SMOKE_YT'];
+    if (smokeYt != null && smokeYt.isNotEmpty) {
+      _platform = 'youtube';
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await _playYoutube(
+        VideoItem(
+          bvid: smokeYt,
+          title: 'smoke-yt',
+          author: '',
+          cover: '',
+          play: 0,
+          durationSeconds: 0,
+          pubdate: 0,
+        ),
+      );
+      _startSmokeLog();
     }
 
     // 无交互自检：设置 VIDEOHUB_SMOKE=BV号 启动后自动播放并把状态写进临时日志
@@ -491,6 +540,7 @@ _player.stream.position.listen((value) {
           'maxRaster=${(_fMaxRasterUs / 1000).toStringAsFixed(1)}ms '
           'maxBuild=${(_fMaxBuildUs / 1000).toStringAsFixed(1)}ms '
           'dm=${_danmaku.length} dmCid=$_danmakuCid dmOn=$_danmakuOn '
+          'proxy=${ProxySettings.instance.current.value.isEmpty ? "direct" : ProxySettings.instance.current.value} '
           'msg=${_message ?? "-"}\n',
           mode: FileMode.append,
         );
@@ -505,6 +555,10 @@ _player.stream.position.listen((value) {
 
   /// 加载推荐流 / 分区内容（[append]=true 时续页追加）
   Future<void> _loadFeed(int index, {bool append = false}) async {
+    if (_isYoutube) {
+      await _loadYoutubeFeed(index, append: append);
+      return;
+    }
     if (_feedLoading) return;
     if (_platform != 'bili') {
       setState(() {
@@ -562,10 +616,151 @@ _player.stream.position.listen((value) {
     }
   }
 
+  /// YouTube 首页：匿名访问拿不到官方推荐流，用固定主题的搜索结果拼分类。
+  Future<void> _loadYoutubeFeed(int index, {bool append = false}) async {
+    if (_feedLoading || append) return;
+    final safeIndex = index.clamp(0, kYoutubeCategories.length - 1);
+    setState(() {
+      _page = 0;
+      _feedIndex = safeIndex;
+      _feedLoading = true;
+      _items = const [];
+      _feedHasMore = false;
+      _message = null;
+      _theaterMode.value = false;
+    });
+    _expandResultsPanel();
+    try {
+      final items = await YoutubeClient.instance.search(
+        kYoutubeCategories[safeIndex].query,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _feedLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _feedLoading = false;
+        _message = 'YouTube 加载失败：$error';
+      });
+    }
+  }
+
+  Future<void> _loadYoutubeSearch(
+    String keyword, {
+    bool append = false,
+  }) async {
+    if (append || _searching) return;
+    setState(() {
+      _page = 0;
+      _feedIndex = -1;
+      _feedKeyword = keyword;
+      _searching = true;
+      _feedLoading = true;
+      _items = const [];
+      _feedHasMore = false;
+      _message = null;
+      _theaterMode.value = false;
+    });
+    _expandResultsPanel();
+    try {
+      final items = await YoutubeClient.instance.search(keyword);
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _searching = false;
+        _feedLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _searching = false;
+        _feedLoading = false;
+        _message = 'YouTube 搜索失败：$error';
+      });
+    }
+  }
+
+  /// 播放 YouTube：yt-dlp 解析出音视频直链后，复用 B站那套 DASH 播放链路。
+  Future<void> _playYoutube(
+    VideoItem item, {
+    Duration startAt = Duration.zero,
+  }) async {
+    final intent = ++_playIntent;
+    if (_localPlaying && mounted) setState(() => _localPlaying = false);
+    _recordProgress(force: true);
+    setState(() {
+      _resolving = true;
+      _message = null;
+      _current = item;
+      _currentBvid = item.bvid;
+      _currentCid = 'yt';
+      _currentAid = null;
+      _currentReportCid = null;
+      _currentPart = null;
+      _danmaku = const [];
+      _danmakuCid = '';
+      _detail = null;
+      _detailBvid = '';
+      _ytDescription = '';
+    });
+    try {
+      final video = await YoutubeClient.instance.video(item.bvid);
+      if (!mounted || intent != _playIntent) return;
+      final play = video.resolved;
+      final stream = _pickYoutubeStream(play.videos, _prefs.ytMaxHeight);
+      var resumeAt = startAt;
+      if (resumeAt <= Duration.zero) {
+        final saved = _savedEntry('v:${item.bvid}:yt');
+        if (saved != null && saved.positionSeconds >= 5) {
+          final total = video.durationSeconds;
+          if (total <= 0 || saved.positionSeconds < total - 3) {
+            resumeAt = Duration(seconds: saved.positionSeconds);
+            _showResumeNote(resumeAt);
+          }
+        }
+      }
+      setState(() {
+        _current = video.item;
+        _play = play;
+        _stream = stream;
+        _ytDescription = video.description;
+        _duration = Duration(seconds: video.durationSeconds);
+      });
+      await _openStream(stream, play.audio, resumeAt);
+    } catch (error) {
+      if (mounted && intent == _playIntent) {
+        setState(() => _message = 'YouTube 播放失败：$error');
+      }
+    } finally {
+      if (mounted && intent == _playIntent) {
+        setState(() => _resolving = false);
+      }
+    }
+  }
+
+  /// YouTube 选流：优先手动偏好，否则取不超过默认上限的最高一档。
+  DashStream _pickYoutubeStream(List<DashStream> videos, int maxHeight) {
+    final preferred = _preferredQn;
+    if (preferred != null) {
+      for (final stream in videos) {
+        if (stream.id == preferred) return stream;
+      }
+    }
+    final capped = videos.where((stream) => stream.height <= maxHeight);
+    return capped.isNotEmpty ? capped.first : videos.last;
+  }
+
   Future<void> _search({bool append = false}) async {
     if (_feedLoading) return;
     final keyword = _searchCtrl.text.trim();
     if (keyword.isEmpty) return;
+    if (_isYoutube) {
+      await _loadYoutubeSearch(keyword, append: append);
+      return;
+    }
     if (_platform != 'bili') {
       setState(() {
         _page = 0;
@@ -641,11 +836,19 @@ _player.stream.position.listen((value) {
 
   void _changePlatform(String code) {
     if (code == _platform) return;
+    // 画质偏好按平台各自记忆，切平台时先清掉内存里的旧值。
+    _preferredQn = null;
     setState(() => _platform = code);
     _prefs.platform = code;
     unawaited(_prefs.save());
-    if (code == 'bili') {
-      unawaited(_loadFeed(_feedIndex < 0 ? 0 : _feedIndex));
+    if (code == 'bili' || code == 'youtube') {
+      setState(() {
+        _items = const [];
+        _feedHasMore = false;
+        _message = null;
+        _feedIndex = 0;
+      });
+      unawaited(_loadFeed(0));
     } else {
       setState(() {
         _items = [];
@@ -748,6 +951,10 @@ _player.stream.position.listen((value) {
     Duration startAt = Duration.zero,
     String? part,
   }) async {
+    if (_isYoutube) {
+      await _playYoutube(item, startAt: startAt);
+      return;
+    }
     final intent = ++_playIntent;
     if (_localPlaying && mounted) setState(() => _localPlaying = false);
     _recordProgress(force: true);
@@ -1084,10 +1291,17 @@ _player.stream.position.listen((value) {
       _trace('abort after stop seq=$seq now=$_openSeq');
       return;
     }
+    // 平台切换后全局头要跟着变：YouTube 不能带 B站 Referer。
+    try {
+      await (_player.platform as dynamic).setProperty(
+        'http-header-fields',
+        _mpvHeaderFields(),
+      );
+    } catch (_) {}
     await _player.open(
       Media(
         url,
-        httpHeaders: _client.streamHeaders,
+        httpHeaders: _mediaHeaders(),
         // 续播位置交给 mpv 在加载阶段定位（mpv 的 start 属性），比打开后
         // 再 seek 快得多，也不会出现「加载完再定位」的二次卡顿。
         start: startAt > const Duration(seconds: 1) ? startAt : null,
@@ -1254,9 +1468,46 @@ _player.stream.position.listen((value) {
   }
 
   /// 从链接条手工输入网址：支持 BV / av 号、b23.tv 短链和 ?p= 分P。
+  /// 从网页链接里取 YouTube 视频 id（watch / youtu.be / shorts / embed）。
+  String? _parseYoutubeId(String input) {
+    final text = input.trim();
+    final patterns = [
+      RegExp(r'youtube\.com/watch\?[^#]*v=([A-Za-z0-9_-]{11})'),
+      RegExp(r'youtu\.be/([A-Za-z0-9_-]{11})'),
+      RegExp(r'youtube\.com/shorts/([A-Za-z0-9_-]{11})'),
+      RegExp(r'youtube\.com/embed/([A-Za-z0-9_-]{11})'),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) return match.group(1);
+    }
+    if (RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(text)) return text;
+    return null;
+  }
+
   Future<void> _playFromUrl(String raw) async {
     final text = raw.trim();
     if (text.isEmpty) return;
+    final youtubeId = _parseYoutubeId(text);
+    if (youtubeId != null) {
+      if (!_isYoutube) {
+        setState(() => _platform = 'youtube');
+        _prefs.platform = 'youtube';
+        unawaited(_prefs.save());
+      }
+      await _playYoutube(
+        VideoItem(
+          bvid: youtubeId,
+          title: 'YouTube 视频',
+          author: '',
+          cover: '',
+          play: 0,
+          durationSeconds: 0,
+          pubdate: 0,
+        ),
+      );
+      return;
+    }
     try {
       final source = await _client.expandShortUrl(text);
       VideoItem? item;
@@ -1274,6 +1525,12 @@ _player.stream.position.listen((value) {
         return;
       }
       item ??= await _client.fetchVideoItem(bvid);
+      // 从 YouTube 页面粘 B站链接时自动切回 B站源，否则播放会走错分支。
+      if (_platform != 'bili') {
+        setState(() => _platform = 'bili');
+        _prefs.platform = 'bili';
+        unawaited(_prefs.save());
+      }
 
       // ?p=2 指定分P：取对应 cid，让 _playVideo 直接跳到该 P。
       String? cid;
@@ -1293,6 +1550,11 @@ _player.stream.position.listen((value) {
 
   /// 播放器上方显示的网页版链接：BV 优先，退化到 av 号。
   String get _videoWebUrl {
+    if (_isYoutube) {
+      return _currentBvid.isEmpty
+          ? ''
+          : 'https://www.youtube.com/watch?v=$_currentBvid';
+    }
     if (_currentBvid.isNotEmpty) {
       return 'https://www.bilibili.com/video/$_currentBvid';
     }
@@ -1337,7 +1599,11 @@ _player.stream.position.listen((value) {
     final resumeAt = _position;
     if (remember) {
       _preferredQn = stream.id;
-      _prefs.playQualityId = stream.id;
+      if (_isYoutube) {
+        _prefs.ytQualityId = stream.id;
+      } else {
+        _prefs.playQualityId = stream.id;
+      }
       unawaited(_prefs.save());
     }
     setState(() {
@@ -1358,9 +1624,18 @@ _player.stream.position.listen((value) {
     final play = _play;
     if (play == null) return;
     _preferredQn = null;
-    _prefs.playQualityId = 0;
+    if (_isYoutube) {
+      _prefs.ytQualityId = 0;
+    } else {
+      _prefs.playQualityId = 0;
+    }
     unawaited(_prefs.save());
-    await _switchQuality(_pickDefault(play.videos), remember: false);
+    await _switchQuality(
+      _isYoutube
+          ? _pickYoutubeStream(play.videos, _prefs.ytMaxHeight)
+          : _pickDefault(play.videos),
+      remember: false,
+    );
   }
 
   /// 每 5 秒写一次进度；force 用于暂停 / 切集 / 关闭时立即落盘
@@ -1533,6 +1808,7 @@ _player.stream.position.listen((value) {
       _danmaku = const [];
       _danmakuCid = '';
       _resumeNote = null;
+      _ytDescription = '';
       _position = Duration.zero;
       _duration = Duration.zero;
       _buffer = Duration.zero;
@@ -1626,6 +1902,33 @@ _player.stream.position.listen((value) {
     final play = _play;
     if (current == null) {
       _snack('请先选择一个视频');
+      return;
+    }
+    if (_isYoutube) {
+      final height = (_stream?.height ?? 0) > 0
+          ? _stream!.height
+          : _prefs.ytMaxHeight;
+      final record = DownloadRecord(
+        key: 'yt:${current.bvid}',
+        platform: 'youtube',
+        videoId: current.bvid,
+        bvid: current.bvid,
+        cid: 'yt',
+        title: current.title,
+        cover: current.cover,
+        qualityId: height,
+        qualityLabel: '${height}P',
+        status: DlStatus.pending,
+        progress: 0,
+        message: '等待下载…',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (_downloadService.enqueue(record)) {
+        _snack('已添加下载任务，正在后台下载');
+        if (mounted) setState(() => _page = 1);
+      } else {
+        _snack('该视频已在下载列表中');
+      }
       return;
     }
 
@@ -1993,12 +2296,15 @@ _player.stream.position.listen((value) {
                 onPlatformChanged: _changePlatform,
               ),
               if (_page == 0) ...[
-                CategoryBar(
-                  page: _page,
-                  feedIndex: _feedIndex,
-                  onSelectFeed: (index) => unawaited(_loadFeed(index)),
-                  onRestoreSearch: _restoreSearchResults,
-                ),
+                if (_isYoutube)
+                  _buildYoutubeCategoryBar()
+                else
+                  CategoryBar(
+                    page: _page,
+                    feedIndex: _feedIndex,
+                    onSelectFeed: (index) => unawaited(_loadFeed(index)),
+                    onRestoreSearch: _restoreSearchResults,
+                  ),
               ],
               if (_page == 1)
                 _buildDownloadPage()
@@ -2029,6 +2335,11 @@ _player.stream.position.listen((value) {
                     left: ResultsList(
                       title: _feedIndex == -1
                           ? '搜索结果'
+                          : _isYoutube
+                          ? (_feedIndex >= 0 &&
+                                    _feedIndex < kYoutubeCategories.length
+                                ? kYoutubeCategories[_feedIndex].name
+                                : 'YouTube')
                           : (_feedIndex == 0
                                 ? '推荐'
                                 : kAllBiliCategories[_feedIndex - 1].name),
@@ -2485,6 +2796,9 @@ fitIndex: _fitIndex,
   Widget _buildUploaderChip() {
     final item = _current;
     if (item == null) return const SizedBox.shrink();
+    if (_isYoutube) {
+      return UploaderChip(author: item.author, face: '', onTap: () {});
+    }
     final mid = (_detail?.ownerMid ?? 0) > 0 ? _detail!.ownerMid : item.mid;
     final face = (_detail?.ownerFace ?? '').isNotEmpty
         ? _detail!.ownerFace
@@ -2498,9 +2812,11 @@ fitIndex: _fitIndex,
 
   /// 简介 Tab：长文本默认折叠 6 行，可展开/收起。
   Widget _buildDescription() {
-    final text = (_detail?.description.isNotEmpty ?? false)
-        ? _detail!.description
-        : '暂无视频简介';
+    final text = _isYoutube
+        ? (_ytDescription.isNotEmpty ? _ytDescription : '暂无视频简介')
+        : ((_detail?.description.isNotEmpty ?? false)
+              ? _detail!.description
+              : '暂无视频简介');
     final expandable = text.length > 220 || '\n'.allMatches(text).length > 5;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2532,6 +2848,66 @@ fitIndex: _fitIndex,
             ),
           ),
       ],
+    );
+  }
+
+  /// YouTube 分类栏：与 B站分区栏同样的视觉，但数据是固定主题搜索。
+  Widget _buildYoutubeCategoryBar() {
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+        itemCount: kYoutubeCategories.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _ytCategoryChip(
+              '搜索结果',
+              _feedIndex == -1,
+              _restoreSearchResults,
+            );
+          }
+          final i = index - 1;
+          return _ytCategoryChip(
+            kYoutubeCategories[i].name,
+            _feedIndex == i,
+            () => unawaited(_loadFeed(i)),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _ytCategoryChip(String label, bool selected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFF1B2A4A).withValues(alpha: 0.6)
+              : SurfaceSettings.instance.color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? const Color(0xFF385A9F) : const Color(0xFF232A36),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: selected
+                  ? const Color(0xFFB8CBFF)
+                  : const Color(0xFF929BAD),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2814,17 +3190,20 @@ const SizedBox(height: 10),
               onTap: () => setState(() => _detailTab = 0),
             ),
             const SizedBox(width: 18),
-            _DetailTab(
-              label: '评论',
-              active: _detailTab == 1,
-              onTap: () => setState(() => _detailTab = 1),
-            ),
+            if (!_isYoutube) ...[
+              const SizedBox(width: 18),
+              _DetailTab(
+                label: '评论',
+                active: _detailTab == 1,
+                onTap: () => setState(() => _detailTab = 1),
+              ),
+            ],
             const Spacer(),
           ],
         ),
         const Divider(height: 1, color: Color(0xFF23262D)),
         const SizedBox(height: 10),
-if (_detailTab == 0) ...[
+if (_detailTab == 0 || _isYoutube) ...[
           _buildDescription(),
         ] else ...[
           CommentsPanel(

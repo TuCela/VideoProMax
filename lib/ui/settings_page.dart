@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../app/proxy_settings.dart';
 import '../app/window_chrome.dart';
 import '../bili/prefs.dart';
 import 'font_settings.dart';
@@ -22,14 +23,37 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  late final TextEditingController _proxyCtrl;
+
   @override
   void initState() {
     super.initState();
+    _proxyCtrl = TextEditingController(text: widget.prefs.proxyUrl);
     unawaited(
       widget.prefs.load().then((_) {
-        if (mounted) setState(() {});
+        if (!mounted) return;
+        _proxyCtrl.text = widget.prefs.proxyUrl;
+        setState(() {});
       }),
     );
+  }
+
+  @override
+  void dispose() {
+    _proxyCtrl.dispose();
+    super.dispose();
+  }
+
+  void _setProxyMode(String mode) {
+    _apply(() => widget.prefs.proxyMode = mode);
+    unawaited(ProxySettings.instance.apply(widget.prefs, mode: mode));
+  }
+
+  void _setProxyUrl(String value) {
+    final text = value.trim();
+    if (text == widget.prefs.proxyUrl) return;
+    _apply(() => widget.prefs.proxyUrl = text);
+    unawaited(ProxySettings.instance.apply(widget.prefs, manual: text));
   }
 
   void _apply(void Function() update) {
@@ -221,6 +245,79 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           _section(
             context,
+            icon: Icons.language,
+            title: '网络与 YouTube',
+            children: [
+              const Text(
+                'YouTube 通常需要代理，B站一般直连即可。代理会同时用于地址解析与视频播放。',
+                style: TextStyle(fontSize: 11, color: Color(0xFF8B9099)),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final entry in const {
+                    'system': '跟随系统',
+                    'manual': '手动',
+                    'direct': '直连',
+                  }.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: widget.prefs.proxyMode == entry.key,
+                      onSelected: (_) => _setProxyMode(entry.key),
+                    ),
+                ],
+              ),
+              if (widget.prefs.proxyMode == 'manual') ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _proxyCtrl,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    labelText: '代理地址',
+                    hintText: 'http://127.0.0.1:10808',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: _setProxyUrl,
+                  onTapOutside: (_) => _setProxyUrl(_proxyCtrl.text),
+                ),
+              ],
+              const SizedBox(height: 8),
+              ValueListenableBuilder<String>(
+                valueListenable: ProxySettings.instance.current,
+                builder: (_, value, __) => Text(
+                  '当前生效：${value.isEmpty ? '直连' : value}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF8B9099),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('YouTube 默认画质上限', style: TextStyle(fontSize: 13)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final height in const [480, 720, 1080, 1440, 2160])
+                    ChoiceChip(
+                      label: Text('${height}P'),
+                      selected: widget.prefs.ytMaxHeight == height,
+                      onSelected: (_) => _apply(
+                        () => widget.prefs.ytMaxHeight = height,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '代理带宽不足时高画质会频繁缓冲，按实际线路选择。',
+                style: TextStyle(fontSize: 11, color: Color(0xFF8B9099)),
+              ),
+            ],
+          ),
+          _section(
+            context,
             icon: Icons.play_circle_outline,
             title: '播放',
             children: [
@@ -380,8 +477,8 @@ class _SettingsPageState extends State<SettingsPage> {
               const ListTile(
                 leading: CircleAvatar(child: Icon(Icons.smart_display)),
                 title: Text('YouTube'),
-                subtitle: Text('接口与播放方案已预留，尚未接入'),
-                trailing: Chip(label: Text('规划中')),
+                subtitle: Text('已接入 · 搜索、播放与下载，需要代理'),
+                trailing: Icon(Icons.check_circle, color: Color(0xFF69DB7C)),
               ),
               const SizedBox(height: 8),
               Text(

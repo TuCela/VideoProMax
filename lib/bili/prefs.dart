@@ -53,6 +53,18 @@ class AppPrefs {
   /// 当前视频源平台（bili / youtube / other）。
   String platform = 'bili';
 
+  /// 代理模式：system（跟随系统）/ manual（手动）/ direct（直连）。
+  String proxyMode = 'system';
+
+  /// 手动代理地址，例如 http://127.0.0.1:10808。
+  String proxyUrl = '';
+
+  /// YouTube 默认画质上限（像素高度）。
+  int ytMaxHeight = 720;
+
+  /// YouTube 手动选定的画质（像素高度，0 表示自动）。
+  int ytQualityId = 0;
+
   /// 最后一次从视频下方点击进入的 UP 主 mid（0 表示还没点过）。
   int lastUpMid = 0;
 
@@ -96,6 +108,12 @@ class AppPrefs {
           (raw['bufferSeconds'] as num?)?.toInt().clamp(5, 120) ??
           bufferSeconds;
       platform = raw['platform'] as String? ?? platform;
+      proxyMode = raw['proxyMode'] as String? ?? proxyMode;
+      proxyUrl = raw['proxyUrl'] as String? ?? proxyUrl;
+      ytMaxHeight =
+          (raw['ytMaxHeight'] as num?)?.toInt().clamp(360, 2160) ??
+          ytMaxHeight;
+      ytQualityId = (raw['ytQualityId'] as num?)?.toInt() ?? ytQualityId;
       lastUpMid = (raw['lastUpMid'] as num?)?.toInt() ?? lastUpMid;
     } catch (_) {
       // 配置损坏就用默认值
@@ -129,6 +147,10 @@ class AppPrefs {
           'fontDelta': fontDelta,
           'bufferSeconds': bufferSeconds,
           'platform': platform,
+          'proxyMode': proxyMode,
+          'proxyUrl': proxyUrl,
+          'ytMaxHeight': ytMaxHeight,
+          'ytQualityId': ytQualityId,
           'lastUpMid': lastUpMid,
         }),
       );

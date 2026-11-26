@@ -19,6 +19,13 @@
 | cupertino_icons | ^1.0.8 | MIT |
 | material_ui | ^1.1.0 | BSD-3-Clause（Flutter 项目） |
 
+| yt-dlp | 2026.11.24（nightly） | Unlicense |
+| Deno | 2.x（单文件可执行） | MIT |
+
+yt-dlp 与 Deno 只用于 YouTube 源：yt-dlp 负责解析地址与下载，
+Deno 负责执行 YouTube 的 JS 挑战脚本（不执行会限制到约 250KB/s）。
+两者都放在 `windows/tools/`，不入 git，由构建脚本随包复制到 exe 同级。
+
 ## 可选组件（不随仓库分发）
 
 | 组件 | 版本 | 许可证 | 说明 |
@@ -45,6 +52,8 @@ GPL 要求分发二进制时让接收方能够取得对应源码，以下是各�
 | ffmpeg 7.1.1（GPL-3.0） | https://github.com/FFmpeg/FFmpeg （tag `n7.1.1`）；Windows 构建来自 https://www.gyan.dev/ffmpeg/builds/ |
 | libmpv（GPL-2.0-or-later） | https://github.com/mpv-player/mpv ，随 media_kit 提供的 Windows 构建 |
 | Dart / Flutter 依赖 | 许可全文随程序分发在 `data/flutter_assets/NOTICES.Z`；包源码见 https://pub.dev |
+| yt-dlp（Unlicense） | https://github.com/yt-dlp/yt-dlp |
+| Deno（MIT） | https://github.com/denoland/deno |
 
 `pubspec.lock` 已入库，按锁文件版本可复现全部依赖。
 

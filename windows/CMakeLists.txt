@@ -98,6 +98,18 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/ffmpeg.exe")
     COMPONENT Runtime)
 endif()
 
+# YouTube 解析引擎与 JS 运行时（解 n-sig 需要），同样随包放到 exe 同级。
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/yt-dlp.exe")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/tools/yt-dlp.exe"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/deno.exe")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/tools/deno.exe"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Copy the native assets provided by the hook/build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

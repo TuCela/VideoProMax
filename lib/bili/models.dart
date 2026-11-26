@@ -69,10 +69,14 @@ class DashStream {
     required this.width,
     required this.height,
     this.backupUrls = const [],
+    this.labelOverride,
   });
 
   /// CDN 备用线路。主线路偶尔会给截断或极慢的流，卡住时切这里。
   final List<String> backupUrls;
+
+  /// 画质显示名（YouTube 等非 B站源用，为空时按 B站的 qn 映射）。
+  final String? labelOverride;
 
   String get codecName {
     if (codecs.startsWith('avc1')) return 'H.264';
@@ -81,10 +85,7 @@ class DashStream {
     return codecs.split('.').first;
   }
 
-  String get label {
-    final name = qualityLabel(id);
-    return '$name · $codecName';
-  }
+  String get label => labelOverride ?? '${qualityLabel(id)} · $codecName';
 }
 
 String qualityLabel(int id) {

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 
+import '../yt/ytdlp.dart';
 import 'client.dart';
 import 'download_store.dart';
 import 'models.dart';
@@ -228,6 +230,10 @@ class DownloadService {
   }
 
   Future<void> _run(DownloadRecord task) async {
+    if (task.platform == 'youtube') {
+      await _runYoutube(task);
+      return;
+    }
     final cancelToken = CancelToken();
     final pauseToken = CancelToken();
     _cancelTokens[task.key] = cancelToken;
@@ -391,6 +397,113 @@ class DownloadService {
   }
 
   /// 进度更新只广播刷新，不每次写盘（关键状态由 store.update 落盘）。
+  /// YouTube 下载：交给 yt-dlp 选流并调用 ffmpeg 合并，进度从标准输出解析。
+  Future<void> _runYoutube(DownloadRecord task) async {
+    final cancelToken = CancelToken();
+    _cancelTokens[task.key] = cancelToken;
+    Process? process;
+    try {
+      final outDir = downloadDir;
+      if (!outDir.existsSync()) await outDir.create(recursive: true);
+      final height = task.qualityId > 0 ? task.qualityId : 720;
+      final base = safeFileName('${task.title} [${task.videoId}]');
+      final output = '${outDir.path}${Platform.pathSeparator}$base.mp4';
+      _touch(task, DlStatus.downloading, 0.0, '准备下载…');
+
+      process = await YtDlp.instance.startDownload([
+        '-f',
+        'bv*[height<=$height]+ba/b[height<=$height]',
+        '--merge-output-format',
+        'mp4',
+        '--ffmpeg-location',
+        appDir.path,
+        '-o',
+        output,
+        'https://www.youtube.com/watch?v=${task.videoId}',
+      ]);
+      final errors = StringBuffer();
+      process.stderr.transform(utf8.decoder).listen(errors.write);
+      final pattern = RegExp(
+        r'\[download\]\s+([\d.]+)% of\s+~?\s*([\d.]+)([KMGT]?i?B) at\s+([\d.]+)([KMGT]?i?B)/s',
+      );
+      await for (final line in process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (cancelToken.isCancelled) {
+          process.kill();
+          break;
+        }
+        if (line.contains('[Merger]')) {
+          _touch(task, DlStatus.merging, 0.98, '合并音视频…');
+          continue;
+        }
+        final match = pattern.firstMatch(line);
+        if (match == null) continue;
+        final percent = double.tryParse(match.group(1) ?? '') ?? 0;
+        final total = _toBytes(
+          double.tryParse(match.group(2) ?? '') ?? 0,
+          match.group(3) ?? 'B',
+        );
+        final speed = _toBytes(
+          double.tryParse(match.group(4) ?? '') ?? 0,
+          match.group(5) ?? 'B',
+        );
+        task.totalBytes = total;
+        task.downloadedBytes = (total * percent / 100).round();
+        task.speed = speed.toDouble();
+        _touch(
+          task,
+          DlStatus.downloading,
+          (percent / 100).clamp(0.0, 1.0),
+          '下载中',
+        );
+      }
+      final code = await process.exitCode;
+      if (cancelToken.isCancelled) {
+        _touch(task, DlStatus.canceled, task.progress, '已取消');
+        return;
+      }
+      if (code != 0) {
+        throw Exception(_youtubeError(errors.toString()));
+      }
+      task.outputPath = output;
+      task.downloadedBytes = task.totalBytes;
+      _touch(task, DlStatus.done, 1.0, '已完成');
+    } catch (error) {
+      _touch(task, DlStatus.failed, task.progress, '$error');
+    } finally {
+      _cancelTokens.remove(task.key);
+      _pauseTokens.remove(task.key);
+    }
+  }
+
+  /// 把 yt-dlp 的 "12.3MiB" 之类换算成字节。
+  int _toBytes(double value, String unit) {
+    const factors = <String, int>{
+      'B': 1,
+      'KiB': 1024,
+      'MiB': 1024 * 1024,
+      'GiB': 1024 * 1024 * 1024,
+      'TiB': 1024 * 1024 * 1024 * 1024,
+      'KB': 1000,
+      'MB': 1000 * 1000,
+      'GB': 1000 * 1000 * 1000,
+      'TB': 1000 * 1000 * 1000 * 1000,
+    };
+    return (value * (factors[unit] ?? 1)).round();
+  }
+
+  String _youtubeError(String stderr) {
+    final lines = stderr
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .where((line) => line.startsWith('ERROR'))
+        .toList();
+    if (lines.isEmpty) return 'yt-dlp 下载失败';
+    final text = lines.last.replaceFirst('ERROR: ', '');
+    return text.length > 160 ? '${text.substring(0, 160)}…' : text;
+  }
+
   void _touch(DownloadRecord task, DlStatus status, double progress, String msg) {
     task.status = status;
     task.progress = progress;
