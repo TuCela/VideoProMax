@@ -83,7 +83,7 @@ class _HomeHeaderState extends State<HomeHeader> {
       child: Container(
         height: 64,
         padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(color: SurfaceSettings.instance.color),
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 1180;

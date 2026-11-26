@@ -28,8 +28,8 @@ class AppPrefs {
   /// 手动选择的日夜（[wallpaperAuto] 为 false 时生效）。
   bool wallpaperDay = false;
 
-  /// 可阅读区域底板的不透明度 0.40~1.00（默认 0.70，越高越易读）。
-  double surfaceOpacity = 0.70;
+  /// 可阅读区域底板的不透明度 0.40~1.00（默认 0.50，越高越易读）。
+  double surfaceOpacity = 0.50;
 
   /// 下载画质 id（-1 表示每集都弹窗选择，其它为固定的画质 id）。
   int downloadQualityId = -1;
@@ -76,7 +76,10 @@ class AppPrefs {
           wallpaperIntensity;
       wallpaperAuto = raw['wallpaperAuto'] as bool? ?? wallpaperAuto;
       wallpaperDay = raw['wallpaperDay'] as bool? ?? wallpaperDay;
-      surfaceOpacity = (raw['surfaceOpacity'] as num?)?.toDouble() ?? surfaceOpacity;
+      surfaceOpacity =
+          (raw['surfaceOpacity'] as num?)?.toDouble() ?? surfaceOpacity;
+      // 上一版默认值是 0.70；未拖动过滑块的用户迁移到新的 0.50 默认。
+      if (surfaceOpacity == 0.70) surfaceOpacity = 0.50;
       downloadQualityId =
           (raw['downloadQualityId'] as num?)?.toInt() ?? downloadQualityId;
       downloadThreads =

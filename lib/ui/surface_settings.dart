@@ -15,7 +15,7 @@ class SurfaceSettings {
 
   static const double minOpacity = 0.40;
   static const double maxOpacity = 1.00;
-  static const double defaultOpacity = 0.70;
+  static const double defaultOpacity = 0.50;
 
   final ValueNotifier<double> opacity =
       ValueNotifier<double>(defaultOpacity);

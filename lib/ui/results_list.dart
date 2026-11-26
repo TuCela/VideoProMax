@@ -224,7 +224,7 @@ class ResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: SurfaceSettings.instance.color,
+      color: Colors.transparent,
       child: Column(
         children: [
           Container(

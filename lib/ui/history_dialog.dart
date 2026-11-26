@@ -46,7 +46,7 @@ class _HistoryDialogState extends State<HistoryDialog> {
   Widget build(BuildContext context) {
     final entries = _merged();
     return Dialog(
-      backgroundColor: SurfaceSettings.instance.color,
+      backgroundColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
         width: 720,

@@ -259,7 +259,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: SurfaceSettings.instance.color,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -385,7 +385,7 @@ class _SpacePageState extends State<SpacePage> {
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: SurfaceSettings.instance.color,
+              color: Colors.transparent,
               border: const Border(top: BorderSide(color: Color(0xFF27323F))),
             ),
             child: Row(

@@ -134,7 +134,7 @@ class EpisodePanel extends StatelessWidget {
       margin: sidebar ? EdgeInsets.zero : const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: SurfaceSettings.instance.color,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),

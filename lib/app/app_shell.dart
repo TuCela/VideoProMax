@@ -94,7 +94,7 @@ class _AppShellState extends State<AppShell> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: SurfaceSettings.instance.color,
+        backgroundColor: Colors.transparent,
         title: const Text('Video Pro Max'),
         content: const Text(
           'Windows 桌面端视频客户端\n当前版本：0.2.0\n视频来源：哔哩哔哩',
@@ -230,7 +230,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 78,
-      color: SurfaceSettings.instance.color,
+      color: Colors.transparent,
       child: ValueListenableBuilder<AppDestination>(
         valueListenable: destination,
         builder: (context, current, _) {

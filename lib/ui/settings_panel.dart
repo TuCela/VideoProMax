@@ -173,7 +173,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: SurfaceSettings.instance.color,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: Column(
