@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../bili/prefs.dart';
 import 'font_settings.dart';
+import 'wallpaper.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.prefs, this.onBack});
@@ -46,7 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0E1117),
+      backgroundColor: Colors.transparent,
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -112,6 +113,63 @@ class _SettingsPageState extends State<SettingsPage> {
                 value: widget.prefs.fontDelta.toDouble(),
                 onChanged: (value) => _setFontDelta(value.round()),
               ),
+            ],
+          ),
+          _section(
+            context,
+            icon: Icons.wallpaper,
+            title: '壁纸',
+            children: [
+              const Text(
+                '背景由代码实时绘制，只出现在页面留白、间距与底板处；卡片、播放器和文字始终落在不透明深色表面上。',
+                style: TextStyle(fontSize: 11, color: Color(0xFF8B9099)),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _wallpaperTile(null),
+                  for (final style in kWallpaperStyles) _wallpaperTile(style),
+                ],
+              ),
+              const SizedBox(height: 4),
+              _sliderTile(
+                title: '背景强度',
+                value: widget.prefs.wallpaperIntensity,
+                max: 0.7,
+                onChanged: (value) => _apply(() {
+                  widget.prefs.wallpaperIntensity = value;
+                  _syncWallpaper();
+                }),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('跟随时间切换日间 / 夜间'),
+                subtitle: const Text('7:00-19:00 使用日间配色'),
+                value: widget.prefs.wallpaperAuto,
+                onChanged: (value) => _apply(() {
+                  widget.prefs.wallpaperAuto = value;
+                  _syncWallpaper();
+                }),
+              ),
+              if (!widget.prefs.wallpaperAuto &&
+                  (wallpaperStyleById(widget.prefs.wallpaperId)?.dayNight ??
+                      false))
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final entry in const {false: '夜间', true: '日间'}.entries)
+                      ChoiceChip(
+                        label: Text(entry.value),
+                        selected: widget.prefs.wallpaperDay == entry.key,
+                        onSelected: (_) => _apply(() {
+                          widget.prefs.wallpaperDay = entry.key;
+                          _syncWallpaper();
+                        }),
+                      ),
+                  ],
+                ),
             ],
           ),
           _section(
@@ -286,6 +344,129 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _syncWallpaper() {
+    final settings = WallpaperSettings.instance;
+    settings.update(
+      settings.state.value.copyWith(
+        styleId: widget.prefs.wallpaperId,
+        intensity: widget.prefs.wallpaperIntensity,
+        auto: widget.prefs.wallpaperAuto,
+        manualDay: widget.prefs.wallpaperDay,
+      ),
+    );
+  }
+
+  bool _previewIsDay(WallpaperStyle style) {
+    if (!style.dayNight) return false;
+    if (widget.prefs.wallpaperAuto) {
+      final hour = DateTime.now().hour;
+      return hour >= 7 && hour < 19;
+    }
+    return widget.prefs.wallpaperDay;
+  }
+
+  Widget _wallpaperTile(WallpaperStyle? style) {
+    final id = style?.id ?? '';
+    final selected = widget.prefs.wallpaperId == id;
+    final dayNight = style?.dayNight ?? false;
+    final isDay = dayNight && _previewIsDay(style!);
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => _apply(() {
+        widget.prefs.wallpaperId = id;
+        _syncWallpaper();
+      }),
+      child: Container(
+        width: 176,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141820),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? const Color(0xFF5B8CFF) : const Color(0xFF2A313E),
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                height: 78,
+                width: double.infinity,
+                child: style == null
+                    ? const ColoredBox(
+                        color: Color(0xFF0B0E14),
+                        child: Center(
+                          child: Text(
+                            '关闭',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF657086),
+                            ),
+                          ),
+                        ),
+                      )
+                    : WallpaperCanvas(
+                        style: style,
+                        isDay: isDay,
+                        intensity: 0.92,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(
+                  style?.name ?? '纯色',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (dayNight) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B2A4A),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '日/夜',
+                      style: TextStyle(fontSize: 9, color: Color(0xFFB8CBFF)),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (selected)
+                  const Icon(
+                    Icons.check_circle,
+                    size: 13,
+                    color: Color(0xFF5B8CFF),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              style?.desc ?? '只用纯底色，不绘制背景',
+              maxLines: 2,
+              style: const TextStyle(
+                fontSize: 10,
+                height: 1.35,
+                color: Color(0xFF8B9099),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

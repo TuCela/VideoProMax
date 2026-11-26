@@ -16,6 +16,18 @@ class AppPrefs {
   double volume = 100;
   String fit = 'contain';
 
+  /// 壁纸风格 id（空字符串表示关闭）。
+  String wallpaperId = 'graphite';
+
+  /// 壁纸可见强度 0~0.7，越低越暗、越利于阅读。
+  double wallpaperIntensity = 0.40;
+
+  /// 壁纸是否跟随时间自动切换日夜。
+  bool wallpaperAuto = true;
+
+  /// 手动选择的日夜（[wallpaperAuto] 为 false 时生效）。
+  bool wallpaperDay = false;
+
   /// 下载画质 id（-1 表示每集都弹窗选择，其它为固定的画质 id）。
   int downloadQualityId = -1;
 
@@ -55,6 +67,12 @@ class AppPrefs {
       danmakuArea = (raw['danmakuArea'] as num?)?.toDouble() ?? danmakuArea;
       volume = (raw['volume'] as num?)?.toDouble() ?? volume;
       fit = raw['fit'] as String? ?? fit;
+      wallpaperId = raw['wallpaperId'] as String? ?? wallpaperId;
+      wallpaperIntensity =
+          (raw['wallpaperIntensity'] as num?)?.toDouble().clamp(0.0, 0.7) ??
+          wallpaperIntensity;
+      wallpaperAuto = raw['wallpaperAuto'] as bool? ?? wallpaperAuto;
+      wallpaperDay = raw['wallpaperDay'] as bool? ?? wallpaperDay;
       downloadQualityId =
           (raw['downloadQualityId'] as num?)?.toInt() ?? downloadQualityId;
       downloadThreads =
@@ -87,6 +105,10 @@ class AppPrefs {
           'danmakuArea': danmakuArea,
           'volume': volume,
           'fit': fit,
+          'wallpaperId': wallpaperId,
+          'wallpaperIntensity': wallpaperIntensity,
+          'wallpaperAuto': wallpaperAuto,
+          'wallpaperDay': wallpaperDay,
           'downloadQualityId': downloadQualityId,
           'downloadThreads': downloadThreads,
           'downloadSpeedLimit': downloadSpeedLimit,

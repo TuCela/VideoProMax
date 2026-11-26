@@ -71,7 +71,7 @@ class _DownloadListState extends State<DownloadList> {
   Widget build(BuildContext context) {
     final list = _filtered();
     return Scaffold(
-      backgroundColor: const Color(0xFF0E1117),
+      backgroundColor: Colors.transparent,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

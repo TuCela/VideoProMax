@@ -432,7 +432,7 @@ class _HistoryViewState extends State<HistoryView> {
     final sections = _sections(entries);
 
     return ColoredBox(
-      color: const Color(0xFF0E1117),
+      color: Colors.transparent,
       child: LayoutBuilder(
         builder: (context, constraints) {
           const padding = 22.0;

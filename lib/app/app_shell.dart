@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../bili/prefs.dart';
 import '../ui/home_page.dart';
 import '../ui/settings_page.dart';
+import '../ui/wallpaper.dart';
 import 'app_destination.dart';
 
 class AppShell extends StatefulWidget {
@@ -35,14 +36,39 @@ class _AppShellState extends State<AppShell> {
       ValueNotifier<AppDestination>(_initialDestination());
   final ValueNotifier<int> _downloadCount = ValueNotifier<int>(0);
 
+  Timer? _dayNightTimer;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_prefs.load());
+    // 壁纸设置存在 prefs 里：先读配置，再让环境变量覆盖（截图/回归用）。
+    unawaited(
+      _prefs.load().then((_) {
+        _syncWallpaper();
+        WallpaperSettings.instance.applyEnvironmentOverride();
+      }),
+    );
+    // 跟随时间切换日夜时，每 5 分钟重算一次，避免长时间挂机后不切换。
+    _dayNightTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _syncWallpaper() {
+    final settings = WallpaperSettings.instance;
+    settings.update(
+      settings.state.value.copyWith(
+        styleId: _prefs.wallpaperId,
+        intensity: _prefs.wallpaperIntensity,
+        auto: _prefs.wallpaperAuto,
+        manualDay: _prefs.wallpaperDay,
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _dayNightTimer?.cancel();
     _downloadCount.dispose();
     _destination.dispose();
     super.dispose();
@@ -74,35 +100,48 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0E1117),
-      body: Row(
-        children: [
-          _Sidebar(
-            destination: _destination,
-            downloadCount: _downloadCount,
-            onSelect: _select,
-            onHelp: _showHelp,
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: _destination.value == AppDestination.settings ? 1 : 0,
+    // 壁纸铺满整个窗口，页面底板保持透明，卡片与播放器仍是
+    // 不透明深色底板 —— 正文始终落在高对比表面上。
+    return ValueListenableBuilder<WallpaperState>(
+      valueListenable: WallpaperSettings.instance.state,
+      builder: (context, wallpaper, _) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: WallpaperBackground(
+            state: wallpaper,
+            isDay: wallpaper.isDayAt(DateTime.now()),
+            child: Row(
               children: [
-                HomePage(
+                _Sidebar(
                   destination: _destination,
-                  prefs: _prefs,
-                  onDownloadCountChanged: (count) =>
-                      _downloadCount.value = count,
+                  downloadCount: _downloadCount,
+                  onSelect: _select,
+                  onHelp: _showHelp,
                 ),
-                SettingsPage(
-                  prefs: _prefs,
-                  onBack: () => _destination.value = AppDestination.home,
+                Expanded(
+                  child: IndexedStack(
+                    index: _destination.value == AppDestination.settings
+                        ? 1
+                        : 0,
+                    children: [
+                      HomePage(
+                        destination: _destination,
+                        prefs: _prefs,
+                        onDownloadCountChanged: (count) =>
+                            _downloadCount.value = count,
+                      ),
+                      SettingsPage(
+                        prefs: _prefs,
+                        onBack: () => _destination.value = AppDestination.home,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
