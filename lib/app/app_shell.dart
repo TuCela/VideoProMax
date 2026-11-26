@@ -6,9 +6,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../bili/prefs.dart';
 import '../ui/home_page.dart';
+import '../ui/settings_panel.dart';
 import '../ui/settings_page.dart';
 import '../ui/wallpaper.dart';
 import 'app_destination.dart';
@@ -35,6 +37,7 @@ class _AppShellState extends State<AppShell> {
   final ValueNotifier<AppDestination> _destination =
       ValueNotifier<AppDestination>(_initialDestination());
   final ValueNotifier<int> _downloadCount = ValueNotifier<int>(0);
+  final ValueNotifier<bool> _settingsPanelOpen = ValueNotifier<bool>(false);
 
   Timer? _dayNightTimer;
 
@@ -70,12 +73,19 @@ class _AppShellState extends State<AppShell> {
   void dispose() {
     _dayNightTimer?.cancel();
     _downloadCount.dispose();
+    _settingsPanelOpen.dispose();
     _destination.dispose();
     super.dispose();
   }
 
   void _select(AppDestination destination) {
+    _settingsPanelOpen.value = false;
     _destination.value = destination;
+  }
+
+  void _openFullSettings() {
+    _settingsPanelOpen.value = false;
+    _destination.value = AppDestination.settings;
   }
 
   void _showHelp() {
@@ -102,44 +112,89 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     // 壁纸铺满整个窗口，页面底板保持透明，卡片与播放器仍是
     // 不透明深色底板 —— 正文始终落在高对比表面上。
-    return ValueListenableBuilder<WallpaperState>(
-      valueListenable: WallpaperSettings.instance.state,
-      builder: (context, wallpaper, _) {
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          body: WallpaperBackground(
-            state: wallpaper,
-            isDay: wallpaper.isDayAt(DateTime.now()),
-            child: Row(
-              children: [
-                _Sidebar(
-                  destination: _destination,
-                  downloadCount: _downloadCount,
-                  onSelect: _select,
-                  onHelp: _showHelp,
-                ),
-                Expanded(
-                  child: IndexedStack(
-                    index: _destination.value == AppDestination.settings
-                        ? 1
-                        : 0,
-                    children: [
-                      HomePage(
-                        destination: _destination,
-                        prefs: _prefs,
-                        onDownloadCountChanged: (count) =>
-                            _downloadCount.value = count,
+    return ValueListenableBuilder<bool>(
+      valueListenable: _settingsPanelOpen,
+      builder: (context, panelOpen, _) {
+        return ValueListenableBuilder<WallpaperState>(
+          valueListenable: WallpaperSettings.instance.state,
+          builder: (context, wallpaper, _) {
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: WallpaperBackground(
+                state: wallpaper,
+                isDay: wallpaper.isDayAt(DateTime.now()),
+                child: Stack(
+                  children: [
+                    Row(
+                      children: [
+                        _Sidebar(
+                          destination: _destination,
+                          downloadCount: _downloadCount,
+                          onSelect: _select,
+                          onSettings: () =>
+                              _settingsPanelOpen.value = !panelOpen,
+                          onHelp: _showHelp,
+                        ),
+                        Expanded(
+                          child: IndexedStack(
+                            index: _destination.value == AppDestination.settings
+                                ? 1
+                                : 0,
+                            children: [
+                              HomePage(
+                                destination: _destination,
+                                prefs: _prefs,
+                                onDownloadCountChanged: (count) =>
+                                    _downloadCount.value = count,
+                              ),
+                              SettingsPage(
+                                prefs: _prefs,
+                                onBack: () =>
+                                    _destination.value = AppDestination.home,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (panelOpen) ...[
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _settingsPanelOpen.value = false,
+                        ),
                       ),
-                      SettingsPage(
-                        prefs: _prefs,
-                        onBack: () => _destination.value = AppDestination.home,
+                      Positioned(
+                        left: 90,
+                        top: 100,
+                        child: Focus(
+                          autofocus: true,
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.escape) {
+                              _settingsPanelOpen.value = false;
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: SizedBox(
+                            width: 320,
+                            height: 426,
+                            child: WallpaperSettingsPanel(
+                              prefs: _prefs,
+                              onClose: () => _settingsPanelOpen.value = false,
+                              onOpenFullSettings: _openFullSettings,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -151,12 +206,14 @@ class _Sidebar extends StatelessWidget {
     required this.destination,
     required this.downloadCount,
     required this.onSelect,
+    required this.onSettings,
     required this.onHelp,
   });
 
   final ValueListenable<AppDestination> destination;
   final ValueListenable<int> downloadCount;
   final ValueChanged<AppDestination> onSelect;
+  final VoidCallback onSettings;
   final VoidCallback onHelp;
 
   @override
@@ -204,7 +261,7 @@ class _Sidebar extends StatelessWidget {
               const Spacer(),
               IconButton(
                 tooltip: '设置',
-                onPressed: () => onSelect(AppDestination.settings),
+                onPressed: onSettings,
                 icon: const Icon(
                   Icons.settings_outlined,
                   size: 19,
