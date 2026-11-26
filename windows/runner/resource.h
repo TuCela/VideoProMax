@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Runner.rc

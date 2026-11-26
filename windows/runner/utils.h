@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 #ifndef RUNNER_UTILS_H_
 #define RUNNER_UTILS_H_
 

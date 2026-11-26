@@ -1,3 +1,6 @@
+// Copyright (c) 2026 flysky
+// SPDX-License-Identifier: GPL-3.0-only
+
 #include "flutter_window.h"
 
 #include <commctrl.h>

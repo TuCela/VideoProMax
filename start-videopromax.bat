@@ -1,3 +1,6 @@
+@REM Copyright (c) 2026 flysky
+@REM SPDX-License-Identifier: GPL-3.0-only
+
 @echo off
 chcp 65001 >nul
 title Video Pro Max (Flutter)

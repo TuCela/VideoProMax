@@ -34,3 +34,21 @@
 ## 商标
 
 「哔哩哔哩」「bilibili」等名称与标识归其权利人所有。本项目为第三方非官方客户端，不使用其 Logo 或商标素材，仅以文字形式说明兼容对象。
+
+## 源码获取
+
+GPL 要求分发二进制时让接收方能够取得对应源码，以下是各组件的位置：
+
+| 组件 | 源码位置 |
+| --- | --- |
+| Video Pro Max 本体 | https://github.com/TuCela/VideoProMax |
+| ffmpeg 7.1.1（GPL-3.0） | https://github.com/FFmpeg/FFmpeg （tag `n7.1.1`）；Windows 构建来自 https://www.gyan.dev/ffmpeg/builds/ |
+| libmpv（GPL-2.0-or-later） | https://github.com/mpv-player/mpv ，随 media_kit 提供的 Windows 构建 |
+| Dart / Flutter 依赖 | 许可全文随程序分发在 `data/flutter_assets/NOTICES.Z`；包源码见 https://pub.dev |
+
+`pubspec.lock` 已入库，按锁文件版本可复现全部依赖。
+
+## 关于 Windows runner
+
+`windows/runner/` 下的模板文件改编自 Flutter 官方 Windows runner 示例（BSD-3-Clause），
+本项目在其上加入了无边框窗口、拖拽缩放等改动；文件头统一以 GPL-3.0-only 标识本项目整体许可。

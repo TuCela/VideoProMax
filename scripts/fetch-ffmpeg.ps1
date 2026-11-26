@@ -1,3 +1,6 @@
+# Copyright (c) 2026 flysky
+# SPDX-License-Identifier: GPL-3.0-only
+
 <#
 .SYNOPSIS
     下载 ffmpeg 到 windows/tools/，供下载合并功能使用。
