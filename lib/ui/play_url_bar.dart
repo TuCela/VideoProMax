@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'surface_settings.dart';
 
 /// 播放器上方的可编辑链接条。
 ///
@@ -83,7 +84,7 @@ class _PlayUrlBarState extends State<PlayUrlBar> {
       margin: EdgeInsets.fromLTRB(widget.leading == null ? 16 : 8, 10, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF23262D)),
       ),

@@ -8,6 +8,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'danmaku_bridge.dart';
 import 'fullscreen_window.dart';
+import 'surface_settings.dart';
 
 /// 播放器控制栏（进度条下方那一排按钮）。
 ///
@@ -312,7 +313,7 @@ Widget _fitButton(int fitIndex, ValueChanged<int> onSelected) {
     height: 34,
     child: PopupMenuButton<int>(
       tooltip: '画面比例',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       padding: EdgeInsets.zero,
       iconSize: 22,
       onSelected: onSelected,
@@ -348,7 +349,7 @@ Widget _moreButton({
     height: 34,
     child: PopupMenuButton<int>(
       tooltip: '更多播放操作',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       padding: EdgeInsets.zero,
       iconSize: 22,
       onSelected: (value) {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import 'package:flutter/material.dart';
+import 'surface_settings.dart';
 
 /// 首页分区：rid 为普通分区 id；seasonType 非空表示版权分区（番剧 1 / 国创 4 / 综艺 7）。
 class BiliCategory {
@@ -87,7 +88,7 @@ class _CategoryBarState extends State<CategoryBar> {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : Colors.transparent,
+          color: selected ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? const Color(0xFF385A9F) : const Color(0xFF232A36),

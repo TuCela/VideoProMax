@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'font_settings.dart';
+import 'surface_settings.dart';
 
 class HomeHeader extends StatefulWidget {
   const HomeHeader({
@@ -82,7 +83,7 @@ class _HomeHeaderState extends State<HomeHeader> {
       child: Container(
         height: 64,
         padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: const BoxDecoration(color: Colors.transparent),
+        decoration: BoxDecoration(color: SurfaceSettings.instance.color),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 1180;
@@ -132,7 +133,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                           height: 38,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
+                            color: SurfaceSettings.instance.color,
                             borderRadius: BorderRadius.circular(9),
                             border: Border.all(color: Color(0xFF2A313E)),
                           ),
@@ -293,7 +294,7 @@ class _PlatformButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       tooltip: '切换视频源平台',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       padding: EdgeInsets.zero,
       onSelected: onChanged,
       itemBuilder: (_) => [
@@ -328,7 +329,7 @@ class _PlatformButton extends StatelessWidget {
         height: 22,
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFF2A313E)),
         ),
@@ -370,7 +371,7 @@ class _RoundFontButton extends StatelessWidget {
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints.tightFor(width: 26, height: 26),
         style: IconButton.styleFrom(
-          backgroundColor: Colors.transparent,
+          backgroundColor: SurfaceSettings.instance.color,
           shape: const CircleBorder(side: BorderSide(color: Color(0xFF2A313E))),
         ),
         icon: Icon(icon, size: 13, color: const Color(0xFF929BAD)),
@@ -392,7 +393,7 @@ class _FontMenu extends StatelessWidget {
       builder: (context, delta, _) {
         return PopupMenuButton<int>(
           tooltip: '全局字号',
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           onSelected: (value) {
             onChangeFont(value);
             onChanged();
@@ -417,7 +418,7 @@ class _FontMenu extends StatelessWidget {
             height: 32,
             padding: const EdgeInsets.symmetric(horizontal: 9),
             decoration: BoxDecoration(
-              color: Colors.transparent,
+              color: SurfaceSettings.instance.color,
               borderRadius: BorderRadius.circular(7),
               border: Border.all(color: Color(0xFF2A313E)),
             ),
@@ -468,7 +469,7 @@ class _UserMenu extends StatelessWidget {
     final displayName = loggedIn ? (name.isEmpty ? '已登录' : name) : '未登录';
     return PopupMenuButton<String>(
       tooltip: '账号菜单',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       padding: EdgeInsets.zero,
       onSelected: (value) {
         if (value == 'space') onUpSpace();

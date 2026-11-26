@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import 'package:flutter/material.dart';
+import 'surface_settings.dart';
 
 /// 视频下方的一排扁平工具栏（选集 / 画面比例 / 弹幕 / 画中画 / 下载）。
 class PlayerToolbar extends StatelessWidget {
@@ -59,7 +60,7 @@ class PlayerToolbar extends StatelessWidget {
         foregroundColor: color,
         backgroundColor: active
             ? Color(0xFF1B2A4A).withValues(alpha: 0.6)
-            : Colors.transparent,
+            : SurfaceSettings.instance.color,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(7),
           side: BorderSide(
@@ -97,7 +98,7 @@ class PlayerToolbar extends StatelessWidget {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -124,7 +125,7 @@ class PlayerToolbar extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),
@@ -176,7 +177,7 @@ class PlayerToolbar extends StatelessWidget {
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: Colors.transparent,
+                color: SurfaceSettings.instance.color,
                 borderRadius: BorderRadius.circular(7),
                 border: Border.all(color: const Color(0xFF2A2E36)),
               ),
@@ -224,7 +225,7 @@ class UploaderChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),

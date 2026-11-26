@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../bili/client.dart';
 import '../bili/models.dart';
+import 'surface_settings.dart';
 
 /// 评论区面板：对齐 B站官方网页版的功能。
 ///
@@ -337,7 +338,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
                     vertical: 8,
                   ),
                   filled: true,
-                  fillColor: Colors.transparent,
+                  fillColor: SurfaceSettings.instance.color,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -414,7 +415,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? Color(0xFF4C6EF5).withValues(alpha: 0.55) : Colors.transparent,
+          color: selected ? Color(0xFF4C6EF5).withValues(alpha: 0.55) : SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -706,7 +707,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
                   vertical: 8,
                 ),
                 filled: true,
-                fillColor: Colors.transparent,
+                fillColor: SurfaceSettings.instance.color,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -740,7 +741,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
       margin: const EdgeInsets.only(top: 8, left: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

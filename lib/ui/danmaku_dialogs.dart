@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import '../bili/models.dart';
+import 'surface_settings.dart';
 
 class DanmakuSettings {
   final bool enabled;
@@ -52,7 +53,7 @@ class _DanmakuSettingsDialogState extends State<DanmakuSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: SurfaceSettings.instance.color,
       title: const Text('弹幕设置', style: TextStyle(fontSize: 16)),
       content: SizedBox(
         width: 380,
@@ -161,7 +162,7 @@ class _DanmakuInputDialogState extends State<DanmakuInputDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: SurfaceSettings.instance.color,
       title: Text(
         '发送弹幕 · ${formatSeconds(widget.position.inSeconds)}',
         style: const TextStyle(fontSize: 15),

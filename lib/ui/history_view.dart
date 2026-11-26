@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../bili/client.dart' show kUserAgent;
 import '../bili/history.dart';
 import '../bili/models.dart';
+import 'surface_settings.dart';
 
 enum _HistoryTimeFilter { all, today, earlier }
 
@@ -105,7 +106,7 @@ class _HistoryViewState extends State<HistoryView> {
         height: 30,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: active ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : Colors.transparent,
+          color: active ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(
             color: active ? const Color(0xFF385A9F) : const Color(0xFF2A313E),
@@ -221,7 +222,7 @@ class _HistoryViewState extends State<HistoryView> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: SurfaceSettings.instance.color,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF2A313E)),
           ),
@@ -357,7 +358,7 @@ class _HistoryViewState extends State<HistoryView> {
     final size = MediaQuery.sizeOf(context);
     final action = await showMenu<String>(
       context: context,
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),

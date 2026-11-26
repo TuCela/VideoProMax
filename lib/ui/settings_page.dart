@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../bili/prefs.dart';
 import 'font_settings.dart';
 import 'wallpaper.dart';
+import 'surface_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.prefs, this.onBack});
@@ -112,6 +113,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 divisions: 16,
                 value: widget.prefs.fontDelta.toDouble(),
                 onChanged: (value) => _setFontDelta(value.round()),
+              ),
+              const SizedBox(height: 8),
+              _sliderTile(
+                title: '内容底板不透明度',
+                value: widget.prefs.surfaceOpacity,
+                min: SurfaceSettings.minOpacity,
+                max: SurfaceSettings.maxOpacity,
+                onChanged: (value) => _apply(() {
+                  widget.prefs.surfaceOpacity = value;
+                  SurfaceSettings.instance.update(value);
+                }),
+              ),
+              const Text(
+                '正文面板的深色底板，越高越易读；与壁纸风格无关。',
+                style: TextStyle(fontSize: 11, color: Color(0xFF8B9099)),
               ),
             ],
           ),
@@ -384,7 +400,7 @@ class _SettingsPageState extends State<SettingsPage> {
         width: 176,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0xFF5B8CFF) : const Color(0xFF2A313E),
@@ -478,7 +494,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required List<Widget> children,
   }) {
     return Card(
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

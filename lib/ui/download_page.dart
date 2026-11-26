@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../bili/client.dart' show kUserAgent;
 import '../bili/download_service.dart';
 import '../bili/download_store.dart';
+import 'surface_settings.dart';
 
 /// 下载页左侧的筛选标签。
 enum DownloadFilter { downloaded, downloading, paused, failed }
@@ -221,7 +222,7 @@ class _DownloadListState extends State<DownloadList> {
             decoration: BoxDecoration(
               color: selected
                   ? color.withValues(alpha: 0.12)
-                  : Colors.transparent,
+                  : SurfaceSettings.instance.color,
               borderRadius: BorderRadius.circular(9),
               border: Border.all(
                 color: selected ? color : const Color(0xFF2A313E),
@@ -332,7 +333,7 @@ class _DownloadListState extends State<DownloadList> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),

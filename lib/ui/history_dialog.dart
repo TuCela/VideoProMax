@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../bili/history.dart';
 import '../bili/models.dart';
+import 'surface_settings.dart';
 
 /// 播放历史弹窗：点击某条返回该条记录，由主页面负责续播
 class HistoryDialog extends StatefulWidget {
@@ -45,7 +46,7 @@ class _HistoryDialogState extends State<HistoryDialog> {
   Widget build(BuildContext context) {
     final entries = _merged();
     return Dialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: SurfaceSettings.instance.color,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
         width: 720,
@@ -133,7 +134,7 @@ class _HistoryDialogState extends State<HistoryDialog> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(

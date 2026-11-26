@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../bili/prefs.dart';
 import 'wallpaper.dart';
+import 'surface_settings.dart';
 
 /// 点击左下角设置按钮弹出的紧凑壁纸面板（约 320×426）。
 ///
@@ -77,7 +78,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
         width: 143,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? const Color(0xFF5B8CFF) : const Color(0xFF2A313E),
@@ -172,7 +173,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -267,7 +268,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
                       decoration: BoxDecoration(
                         color: widget.prefs.wallpaperId.isEmpty
                             ? Color(0xFF1B2A4A).withValues(alpha: 0.6)
-                            : Colors.transparent,
+                            : SurfaceSettings.instance.color,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: widget.prefs.wallpaperId.isEmpty
@@ -312,6 +313,32 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
                     onChanged: (value) => _apply(() {
                       widget.prefs.wallpaperIntensity = value;
                       _syncWallpaper();
+                    }),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Text(
+                        '内容底板不透明度',
+                        style: TextStyle(fontSize: 11, color: Color(0xFFE6E9F0)),
+                      ),
+                      const Spacer(),
+                      Text(
+                        widget.prefs.surfaceOpacity.toStringAsFixed(2),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9FB0FF),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    min: SurfaceSettings.minOpacity,
+                    max: SurfaceSettings.maxOpacity,
+                    value: widget.prefs.surfaceOpacity,
+                    onChanged: (value) => _apply(() {
+                      widget.prefs.surfaceOpacity = value;
+                      SurfaceSettings.instance.update(value);
                     }),
                   ),
                   const SizedBox(height: 2),

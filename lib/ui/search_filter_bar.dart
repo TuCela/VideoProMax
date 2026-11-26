@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import 'package:flutter/material.dart';
+import 'surface_settings.dart';
 
 /// 搜索结果筛选条件。
 class SearchFilter {
@@ -126,7 +127,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),
@@ -271,7 +272,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -321,7 +322,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                     decoration: BoxDecoration(
                       color: selected
                           ? Color(0xFF4C6EF5).withValues(alpha: 0.55)
-                          : Colors.transparent,
+                          : SurfaceSettings.instance.color,
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(

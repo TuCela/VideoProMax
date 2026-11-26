@@ -12,6 +12,7 @@ import '../bili/prefs.dart';
 import '../ui/home_page.dart';
 import '../ui/settings_panel.dart';
 import '../ui/settings_page.dart';
+import '../ui/surface_settings.dart';
 import '../ui/wallpaper.dart';
 import 'app_destination.dart';
 
@@ -48,6 +49,7 @@ class _AppShellState extends State<AppShell> {
     unawaited(
       _prefs.load().then((_) {
         _syncWallpaper();
+        SurfaceSettings.instance.update(_prefs.surfaceOpacity);
         WallpaperSettings.instance.applyEnvironmentOverride();
       }),
     );
@@ -92,7 +94,7 @@ class _AppShellState extends State<AppShell> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.transparent,
+        backgroundColor: SurfaceSettings.instance.color,
         title: const Text('Video Pro Max'),
         content: const Text(
           'Windows 桌面端视频客户端\n当前版本：0.2.0\n视频来源：哔哩哔哩',
@@ -110,89 +112,97 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    // 壁纸铺满整个窗口，页面底板保持透明，卡片与播放器仍是
-    // 不透明深色底板 —— 正文始终落在高对比表面上。
-    return ValueListenableBuilder<bool>(
-      valueListenable: _settingsPanelOpen,
-      builder: (context, panelOpen, _) {
-        return ValueListenableBuilder<WallpaperState>(
-          valueListenable: WallpaperSettings.instance.state,
-          builder: (context, wallpaper, _) {
-            return Scaffold(
-              backgroundColor: Colors.transparent,
-              body: WallpaperBackground(
-                state: wallpaper,
-                isDay: wallpaper.isDayAt(DateTime.now()),
-                child: Stack(
-                  children: [
-                    Row(
+    // 壁纸铺满整个窗口；正文落在统一的半透明底板上，不透明度与壁纸
+    // 解耦，换任何壁纸都能保持对比度。底板变化时整窗重建即时生效。
+    return ValueListenableBuilder<double>(
+      valueListenable: SurfaceSettings.instance.opacity,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: _settingsPanelOpen,
+          builder: (context, panelOpen, _) {
+            return ValueListenableBuilder<WallpaperState>(
+              valueListenable: WallpaperSettings.instance.state,
+              builder: (context, wallpaper, _) {
+                return Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: WallpaperBackground(
+                    state: wallpaper,
+                    isDay: wallpaper.isDayAt(DateTime.now()),
+                    child: Stack(
                       children: [
-                        _Sidebar(
-                          destination: _destination,
-                          downloadCount: _downloadCount,
-                          onSelect: _select,
-                          onSettings: () =>
-                              _settingsPanelOpen.value = !panelOpen,
-                          onHelp: _showHelp,
-                        ),
-                        Expanded(
-                          child: IndexedStack(
-                            index: _destination.value == AppDestination.settings
-                                ? 1
-                                : 0,
-                            children: [
-                              HomePage(
-                                destination: _destination,
-                                prefs: _prefs,
-                                onDownloadCountChanged: (count) =>
-                                    _downloadCount.value = count,
+                        Row(
+                          children: [
+                            _Sidebar(
+                              destination: _destination,
+                              downloadCount: _downloadCount,
+                              onSelect: _select,
+                              onSettings: () =>
+                                  _settingsPanelOpen.value = !panelOpen,
+                              onHelp: _showHelp,
+                            ),
+                            Expanded(
+                              child: IndexedStack(
+                                index: _destination.value ==
+                                        AppDestination.settings
+                                    ? 1
+                                    : 0,
+                                children: [
+                                  HomePage(
+                                    destination: _destination,
+                                    prefs: _prefs,
+                                    onDownloadCountChanged: (count) =>
+                                        _downloadCount.value = count,
+                                  ),
+                                  SettingsPage(
+                                    prefs: _prefs,
+                                    onBack: () => _destination.value =
+                                        AppDestination.home,
+                                  ),
+                                ],
                               ),
-                              SettingsPage(
-                                prefs: _prefs,
-                                onBack: () =>
-                                    _destination.value = AppDestination.home,
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    if (panelOpen) ...[
-                      Positioned.fill(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => _settingsPanelOpen.value = false,
-                        ),
-                      ),
-                      Positioned(
-                        left: 90,
-                        top: 100,
-                        child: Focus(
-                          autofocus: true,
-                          onKeyEvent: (node, event) {
-                            if (event is KeyDownEvent &&
-                                event.logicalKey ==
-                                    LogicalKeyboardKey.escape) {
-                              _settingsPanelOpen.value = false;
-                              return KeyEventResult.handled;
-                            }
-                            return KeyEventResult.ignored;
-                          },
-                          child: SizedBox(
-                            width: 320,
-                            height: 426,
-                            child: WallpaperSettingsPanel(
-                              prefs: _prefs,
-                              onClose: () => _settingsPanelOpen.value = false,
-                              onOpenFullSettings: _openFullSettings,
+                        if (panelOpen) ...[
+                          Positioned.fill(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () =>
+                                  _settingsPanelOpen.value = false,
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                          Positioned(
+                            left: 90,
+                            top: 100,
+                            child: Focus(
+                              autofocus: true,
+                              onKeyEvent: (node, event) {
+                                if (event is KeyDownEvent &&
+                                    event.logicalKey ==
+                                        LogicalKeyboardKey.escape) {
+                                  _settingsPanelOpen.value = false;
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: SizedBox(
+                                width: 320,
+                                height: 426,
+                                child: WallpaperSettingsPanel(
+                                  prefs: _prefs,
+                                  onClose: () =>
+                                      _settingsPanelOpen.value = false,
+                                  onOpenFullSettings: _openFullSettings,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -220,7 +230,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 78,
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       child: ValueListenableBuilder<AppDestination>(
         valueListenable: destination,
         builder: (context, current, _) {

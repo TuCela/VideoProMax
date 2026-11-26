@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../bili/client.dart';
 import '../bili/models.dart';
+import 'surface_settings.dart';
 
 /// 独立的 UP 主空间页面。
 ///
@@ -258,7 +259,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -383,9 +384,9 @@ class _SpacePageState extends State<SpacePage> {
           Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-              border: Border(top: BorderSide(color: Color(0xFF27323F))),
+            decoration: BoxDecoration(
+              color: SurfaceSettings.instance.color,
+              border: const Border(top: BorderSide(color: Color(0xFF27323F))),
             ),
             child: Row(
               children: [
@@ -432,7 +433,7 @@ class _SpacePageState extends State<SpacePage> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF2E3A8C) : Colors.transparent,
+            color: selected ? const Color(0xFF2E3A8C) : SurfaceSettings.instance.color,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
@@ -465,7 +466,7 @@ class _SpacePageState extends State<SpacePage> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A2E36)),
       ),
@@ -618,7 +619,7 @@ class _SpacePageState extends State<SpacePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF232B47) : Colors.transparent,
+          color: selected ? const Color(0xFF232B47) : SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: selected ? const Color(0xFF3E5BD6) : const Color(0xFF2A2E36),
@@ -674,7 +675,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -771,7 +772,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -876,7 +877,7 @@ class _SpacePageState extends State<SpacePage> {
       onTap: () => widget.onPlay(item),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFF23262D)),
         ),

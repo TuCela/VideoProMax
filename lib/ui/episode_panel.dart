@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import 'danmaku_bridge.dart';
+import 'surface_settings.dart';
 
 /// 选集面板：分 P / 合集 / 版权剧集共用一套列表。
 ///
@@ -51,7 +52,7 @@ class EpisodePanel extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 2),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
-          color: entry.playing ? const Color(0xFF1E2533) : Colors.transparent,
+          color: entry.playing ? const Color(0xFF1E2533) : SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
@@ -133,7 +134,7 @@ class EpisodePanel extends StatelessWidget {
       margin: sidebar ? EdgeInsets.zero : const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: SurfaceSettings.instance.color,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),

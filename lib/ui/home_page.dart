@@ -46,6 +46,7 @@ import 'player_toolbar.dart';
 import 'results_list.dart';
 import 'search_filter_bar.dart';
 import 'space_page.dart';
+import 'surface_settings.dart';
 
 /// 首页分区数据见 `category_bar.dart`。
 class HomePage extends StatefulWidget {
@@ -2683,7 +2684,7 @@ class _QualityMenu extends StatelessWidget {
         .label;
     return PopupMenuButton<int>(
       tooltip: '画质',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2716,7 +2717,7 @@ class _QualityMenu extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -2762,7 +2763,7 @@ class _ToolChip extends StatelessWidget {
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 9),
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: SurfaceSettings.instance.color,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: const Color(0xFF2A2E36)),
           ),
@@ -2802,7 +2803,7 @@ class _DetailTab extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: active ? const Color(0xFF5B8CFF) : Colors.transparent,
+              color: active ? const Color(0xFF5B8CFF) : SurfaceSettings.instance.color,
               width: 2,
             ),
           ),
@@ -2852,7 +2853,7 @@ class _PlayerMoreButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<int>(
       tooltip: '更多',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2892,7 +2893,7 @@ class _PlayerMoreButton extends StatelessWidget {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: const Color(0xFF2A313E)),
         ),
@@ -2917,7 +2918,7 @@ class _BufferTargetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<void>(
       tooltip: '调节预缓冲时长',
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2937,7 +2938,7 @@ class _BufferTargetButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: SurfaceSettings.instance.color,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A313E)),
         ),

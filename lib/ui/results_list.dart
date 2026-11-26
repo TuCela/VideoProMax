@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../bili/client.dart' show kUserAgent;
 import '../bili/models.dart';
 import 'search_filter_bar.dart';
+import 'surface_settings.dart';
 
 /// 左侧搜索结果 / 推荐 / 分区列表。
 ///
@@ -85,10 +86,10 @@ class ResultsList extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: selected ? const Color(0xFF1B2A4A) : Colors.transparent,
+              color: selected ? const Color(0xFF1B2A4A) : SurfaceSettings.instance.color,
               borderRadius: BorderRadius.circular(9),
               border: Border.all(
-                color: selected ? const Color(0xFF385A9F) : Colors.transparent,
+                color: selected ? const Color(0xFF385A9F) : SurfaceSettings.instance.color,
               ),
             ),
             child: Row(
@@ -223,7 +224,7 @@ class ResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Colors.transparent,
+      color: SurfaceSettings.instance.color,
       child: Column(
         children: [
           Container(
