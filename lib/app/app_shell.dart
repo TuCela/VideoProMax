@@ -56,7 +56,7 @@ class _AppShellState extends State<AppShell> {
         backgroundColor: const Color(0xFF141820),
         title: const Text('VideoHub'),
         content: const Text(
-          'Windows 桌面端视频客户端\n当前版本：1.0.0\n视频来源：哔哩哔哩',
+          'Windows 桌面端视频客户端\n当前版本：0.2.0\n视频来源：哔哩哔哩',
           style: TextStyle(fontSize: 12, height: 1.8),
         ),
         actions: [
