@@ -258,7 +258,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF171A20),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -384,7 +384,7 @@ class _SpacePageState extends State<SpacePage> {
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFF141820),
+              color: Colors.transparent,
               border: Border(top: BorderSide(color: Color(0xFF27323F))),
             ),
             child: Row(
@@ -465,7 +465,7 @@ class _SpacePageState extends State<SpacePage> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E222A),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A2E36)),
       ),
@@ -674,7 +674,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF171A20),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -771,7 +771,7 @@ class _SpacePageState extends State<SpacePage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF171A20),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF23262D)),
       ),
@@ -876,7 +876,7 @@ class _SpacePageState extends State<SpacePage> {
       onTap: () => widget.onPlay(item),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF171A20),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFF23262D)),
         ),

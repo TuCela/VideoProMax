@@ -312,7 +312,7 @@ Widget _fitButton(int fitIndex, ValueChanged<int> onSelected) {
     height: 34,
     child: PopupMenuButton<int>(
       tooltip: '画面比例',
-      color: const Color(0xFF171A20),
+      color: Colors.transparent,
       padding: EdgeInsets.zero,
       iconSize: 22,
       onSelected: onSelected,
@@ -348,7 +348,7 @@ Widget _moreButton({
     height: 34,
     child: PopupMenuButton<int>(
       tooltip: '更多播放操作',
-      color: const Color(0xFF171A20),
+      color: Colors.transparent,
       padding: EdgeInsets.zero,
       iconSize: 22,
       onSelected: (value) {

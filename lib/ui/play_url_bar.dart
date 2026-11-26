@@ -83,7 +83,7 @@ class _PlayUrlBarState extends State<PlayUrlBar> {
       margin: EdgeInsets.fromLTRB(widget.leading == null ? 16 : 8, 10, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF14171C),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF23262D)),
       ),

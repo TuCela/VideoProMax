@@ -2683,7 +2683,7 @@ class _QualityMenu extends StatelessWidget {
         .label;
     return PopupMenuButton<int>(
       tooltip: '画质',
-      color: const Color(0xFF141820),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2716,7 +2716,7 @@ class _QualityMenu extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -2762,7 +2762,7 @@ class _ToolChip extends StatelessWidget {
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 9),
           decoration: BoxDecoration(
-            color: const Color(0xFF141820),
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: const Color(0xFF2A2E36)),
           ),
@@ -2852,7 +2852,7 @@ class _PlayerMoreButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<int>(
       tooltip: '更多',
-      color: const Color(0xFF141820),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2892,7 +2892,7 @@ class _PlayerMoreButton extends StatelessWidget {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: const Color(0xFF2A313E)),
         ),
@@ -2917,7 +2917,7 @@ class _BufferTargetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<void>(
       tooltip: '调节预缓冲时长',
-      color: const Color(0xFF141820),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: const BorderSide(color: Color(0xFF2A313E)),
@@ -2937,7 +2937,7 @@ class _BufferTargetButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: const Color(0xFF171A20),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A313E)),
         ),

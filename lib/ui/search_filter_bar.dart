@@ -126,7 +126,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF141820),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),
@@ -271,7 +271,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1F29),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -320,8 +320,8 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? const Color(0xFF4C6EF5)
-                          : const Color(0xFF1A1F29),
+                          ? Color(0xFF4C6EF5).withValues(alpha: 0.55)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(

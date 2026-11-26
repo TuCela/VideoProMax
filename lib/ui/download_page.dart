@@ -221,7 +221,7 @@ class _DownloadListState extends State<DownloadList> {
             decoration: BoxDecoration(
               color: selected
                   ? color.withValues(alpha: 0.12)
-                  : const Color(0xFF141820),
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(9),
               border: Border.all(
                 color: selected ? color : const Color(0xFF2A313E),
@@ -332,7 +332,7 @@ class _DownloadListState extends State<DownloadList> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF141820),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),

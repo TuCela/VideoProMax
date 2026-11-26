@@ -37,7 +37,7 @@ class VideoHubApp extends StatelessWidget {
             // 页面底色交给壁纸层（WallpaperBackground）提供，
             // 这里透明才能让代码绘制的背景透出来。
             scaffoldBackgroundColor: Colors.transparent,
-            cardColor: const Color(0xFF141820),
+            cardColor: Colors.transparent,
             dividerColor: const Color(0xFF2A313E),
             visualDensity: VisualDensity.compact,
             // 固定中文字体族：Windows 默认会按字符逐个回退，

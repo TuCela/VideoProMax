@@ -223,7 +223,7 @@ class ResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF10141B),
+      color: Colors.transparent,
       child: Column(
         children: [
           Container(

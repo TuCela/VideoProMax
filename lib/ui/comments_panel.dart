@@ -337,7 +337,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
                     vertical: 8,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF171A20),
+                  fillColor: Colors.transparent,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -414,7 +414,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF4C6EF5) : const Color(0xFF1A1D24),
+          color: selected ? Color(0xFF4C6EF5).withValues(alpha: 0.55) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -706,7 +706,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
                   vertical: 8,
                 ),
                 filled: true,
-                fillColor: const Color(0xFF12151B),
+                fillColor: Colors.transparent,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -740,7 +740,7 @@ class _CommentsPanelState extends State<CommentsPanel> {
       margin: const EdgeInsets.only(top: 8, left: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF12151B),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

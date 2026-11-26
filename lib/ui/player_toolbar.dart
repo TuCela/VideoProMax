@@ -58,8 +58,8 @@ class PlayerToolbar extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: color,
         backgroundColor: active
-            ? const Color(0xFF1B2A4A)
-            : const Color(0xFF141820),
+            ? Color(0xFF1B2A4A).withValues(alpha: 0.6)
+            : Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(7),
           side: BorderSide(
@@ -97,7 +97,7 @@ class PlayerToolbar extends StatelessWidget {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),
@@ -124,7 +124,7 @@ class PlayerToolbar extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF11151C),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFF2A313E)),
       ),
@@ -176,7 +176,7 @@ class PlayerToolbar extends StatelessWidget {
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF141820),
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(7),
                 border: Border.all(color: const Color(0xFF2A2E36)),
               ),
@@ -224,7 +224,7 @@ class UploaderChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFF2A2E36)),
         ),

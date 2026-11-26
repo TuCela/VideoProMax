@@ -509,7 +509,7 @@ class EpisodeOverlay extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 7),
                     color: entry.playing
-                        ? const Color(0xFF1E2533)
+                        ? Color(0xFF1E2533).withValues(alpha: 0.7)
                         : Colors.transparent,
                     child: Row(
                       children: [

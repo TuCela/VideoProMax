@@ -384,7 +384,7 @@ class _SettingsPageState extends State<SettingsPage> {
         width: 176,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0xFF5B8CFF) : const Color(0xFF2A313E),
@@ -478,7 +478,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required List<Widget> children,
   }) {
     return Card(
-      color: const Color(0xFF141820),
+      color: Colors.transparent,
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

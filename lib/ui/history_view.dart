@@ -105,7 +105,7 @@ class _HistoryViewState extends State<HistoryView> {
         height: 30,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF1B2A4A) : const Color(0xFF141820),
+          color: active ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(
             color: active ? const Color(0xFF385A9F) : const Color(0xFF2A313E),
@@ -221,7 +221,7 @@ class _HistoryViewState extends State<HistoryView> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF141820),
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF2A313E)),
           ),
@@ -357,7 +357,7 @@ class _HistoryViewState extends State<HistoryView> {
     final size = MediaQuery.sizeOf(context);
     final action = await showMenu<String>(
       context: context,
-      color: const Color(0xFF141820),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFF2A313E)),

@@ -77,7 +77,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
         width: 143,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFF141820),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? const Color(0xFF5B8CFF) : const Color(0xFF2A313E),
@@ -172,7 +172,7 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF0B0E14),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -266,8 +266,8 @@ class _WallpaperSettingsPanelState extends State<WallpaperSettingsPanel> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
                         color: widget.prefs.wallpaperId.isEmpty
-                            ? const Color(0xFF1B2A4A)
-                            : const Color(0xFF141820),
+                            ? Color(0xFF1B2A4A).withValues(alpha: 0.6)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: widget.prefs.wallpaperId.isEmpty

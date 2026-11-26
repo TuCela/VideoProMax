@@ -87,7 +87,7 @@ class _CategoryBarState extends State<CategoryBar> {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1B2A4A) : const Color(0xFF141820),
+          color: selected ? Color(0xFF1B2A4A).withValues(alpha: 0.6) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? const Color(0xFF385A9F) : const Color(0xFF232A36),
